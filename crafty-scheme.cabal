@@ -1,0 +1,56 @@
+cabal-version:      3.0
+name:               crafty-scheme
+version:            0.1.0.0
+-- synopsis:
+-- description:
+license:            MIT
+license-file:       LICENSE
+author:             Noah Green
+maintainer:         noah@noahc.green
+-- copyright:
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:  Crafty.Parse
+    -- other-modules: 
+    -- other-extensions:
+    build-depends:
+        base ^>=4.17.2.1,
+        mtl,
+        transformers,
+        parsec ^>=3.1.17.0,
+        case-insensitive
+    hs-source-dirs:   src
+    default-language: GHC2021
+
+executable crafty-scheme
+    import:           warnings
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:
+        base ^>=4.17.2.1,
+        crafty-scheme,
+        mtl
+
+    hs-source-dirs:   app
+    default-language: GHC2021
+
+test-suite crafty-scheme-test
+    import:           warnings
+    default-language: GHC2021
+    -- other-modules:
+    -- other-extensions:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    build-depends:
+        base ^>=4.17.2.1,
+        crafty-scheme,
+        HUnit
