@@ -102,10 +102,68 @@ numberTests = TestLabel "Numbers" $ TestList [
     testParseComplex
     ]
 
+-- Characters
+
+testNamedCharacters :: Test
+testNamedCharacters = TestLabel "Named characters" . TestCase $ do
+    parse' "#\\alarm" >>= (@?= Character '\7')
+    parse' "#\\backspace" >>= (@?= Character '\8')
+    parse' "#\\delete" >>= (@?= Character '\127')
+    parse' "#\\escape" >>= (@?= Character '\27')
+    parse' "#\\newline" >>= (@?= Character '\n')
+    parse' "#\\null" >>= (@?= Character '\0')
+    parse' "#\\return" >>= (@?= Character '\r')
+    parse' "#\\space" >>= (@?= Character ' ')
+    parse' "#\\tab" >>= (@?= Character '\t')
+
+testHexCharacters :: Test
+testHexCharacters = TestLabel "Hex characters" . TestCase $ do
+    parse' "#\\x03BB" >>= (@?= Character 'λ')
+    parse' "#\\x03bb" >>= (@?= Character 'λ')
+
+testCharacterLiterals :: Test
+testCharacterLiterals = TestLabel "Character literals" . TestCase $ do
+    parse' "#\\x" >>= (@?= Character 'x')
+    parse' "#\\1" >>= (@?= Character '1')
+
+characterTests :: Test
+characterTests = TestLabel "Numbers" $ TestList [
+    testNamedCharacters,
+    testHexCharacters,
+    testCharacterLiterals
+    ]
+
+-- Strings
+
+testEmptyString :: Test
+testEmptyString = TestLabel "Empty string" . TestCase $ do
+    parse' "\"\"" >>= (@?= String "")
+
+testEscapedStringCharacters :: Test
+testEscapedStringCharacters = TestLabel "Escaped string characters" . TestCase $ do
+    parse' "\"\\a\"" >>= (@?= String "\7")
+    parse' "\"\\b\"" >>= (@?= String "\8")
+    parse' "\"\\t\"" >>= (@?= String "\t")
+    parse' "\"\\n\"" >>= (@?= String "\n")
+    parse' "\"\\r\"" >>= (@?= String "\r")
+    parse' "\"\\\"\"" >>= (@?= String "\"")
+    parse' "\"\\\\\"" >>= (@?= String "\\")
+    parse' "\"\\|\"" >>= (@?= String "|")
+    parse' "\"\\x0;\"" >>= (@?= String "\NUL")
+
+stringTests :: Test
+stringTests = TestLabel "Strings" $ TestList [testEmptyString, testEscapedStringCharacters]
+
 -- All tests
 
 allTests :: Test
-allTests = TestList [identifierTests, numberTests, booleanTests]
+allTests = TestList [
+    identifierTests,
+    numberTests,
+    booleanTests,
+    characterTests,
+    stringTests
+    ]
 
 main :: IO ()
 main = do

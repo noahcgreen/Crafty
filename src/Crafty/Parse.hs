@@ -8,42 +8,11 @@ import qualified Text.Parsec as Parsec
 import Prelude hiding (Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
 
--- Tokenization
+-- read
 
 data FoldCaseState = FoldCase | NoFoldCase deriving (Show)
 
 type Parser = Parsec.Parsec String FoldCaseState
-
--- TODO: Remove below "token" functions in favor of read/parse
-
-tokenize :: String -> String -> Either Parsec.ParseError [String]
-tokenize = Parsec.runParser (tokens <* Parsec.eof) FoldCase
-
--- TODO: Return proper token type
--- TODO: Handle whitespace/comments/directives
--- TODO: Number parsing is somewhat broken, e.g. #o1.2 doesn't parse
--- because #o1 matches, then .2 doesn't?
-tokens :: Parser [String]
-tokens = Parsec.sepBy token intertokenSpace
-
--- TODO: number
-token :: Parser String
-token = show <$> boolean
-    <|> show <$> number
-    <|> Parsec.try identifier
-    <|> string
-    <|> pure <$> character
-    <|> leftParenthesis $> "("
-    <|> rightParenthesis $> ")"
-    <|> vectorStart $> "#("
-    <|> byteVectorStart $> "#u8("
-    <|> quote $> "'"
-    <|> backtick $> "`"
-    <|> commaAt $> ",@"
-    <|> comma $> "," -- Only try after commaAt
-    <|> dot $> "."
-
--- "read"
 
 read :: String -> String -> Either SomeException Datum
 read file source = case Parsec.runParser (datum <* Parsec.eof) FoldCase file source of
@@ -126,9 +95,11 @@ stringElement = anyCharacter
     <|> Parsec.try mnemonicEscape
     <|> Parsec.try escapedNewline
     <|> Parsec.try inlineHexEscape
+    <|> Parsec.try (pure <$> escapedPipe)
+    <?> "string element"
 
 anyCharacter :: Parser String
-anyCharacter = return <$> Parsec.noneOf "\\\""
+anyCharacter = return <$> Parsec.noneOf ['\\', '"', '|']
 
 escapedStringElement :: Parser String
 escapedStringElement = do
@@ -166,6 +137,7 @@ lineEnding :: Parser String
 lineEnding = pure <$> Parsec.char '\n'
     <|> Parsec.string' "\r\n"
     <|> pure <$> Parsec.char '\r'
+    <?> "line ending"
 
 -- TODO: Integrate with foldCase (CI)
 identifier :: Parser String
