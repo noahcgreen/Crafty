@@ -5,6 +5,7 @@ import Test.HUnit
 import Control.Exception (SomeException)
 
 import Crafty.Parse
+import GHC.Stack (HasCallStack)
 
 -- Utilities
 
@@ -14,12 +15,12 @@ testFileName = "test.scm"
 parse :: String -> Either SomeException Datum
 parse = Crafty.Parse.read testFileName
 
-assertRight :: Show a => Either a b -> IO b
+assertRight :: HasCallStack => Show a => Either a b -> IO b
 assertRight e = case e of
     Left error' -> assertFailure $ show error'
     Right value -> return value
 
-parse' :: String -> IO Datum
+parse' :: HasCallStack => String -> IO Datum
 parse' = assertRight . parse
 
 -- Tests
