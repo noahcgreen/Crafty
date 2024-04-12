@@ -152,8 +152,15 @@ testEscapedStringCharacters = TestLabel "Escaped string characters" . TestCase $
     parse' "\"\\|\"" >>= (@?= String "|")
     parse' "\"\\x0;\"" >>= (@?= String "\NUL")
 
+testMultiCharacterString ::Test
+testMultiCharacterString = TestLabel "Multi-character string" . TestCase $ do
+    parse' "\"abc123 \\|\"" >>= (@?= String "abc123 |")
+
 stringTests :: Test
-stringTests = TestLabel "Strings" $ TestList [testEmptyString, testEscapedStringCharacters]
+stringTests = TestLabel "Strings" $ TestList [
+    testEmptyString,
+    testEscapedStringCharacters,
+    testMultiCharacterString]
 
 -- All tests
 
