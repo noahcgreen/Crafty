@@ -40,20 +40,26 @@ vectorStart = void $ Parsec.string' "#("
 byteVectorStart :: Parser ()
 byteVectorStart = void $ Parsec.string' "#u8("
 
-quote :: Parser ()
-quote = void $ Parsec.char '\''
+quote :: Parser Char
+quote = Parsec.char '\''
 
-backtick :: Parser ()
-backtick = void $ Parsec.char '`'
+backtick :: Parser Char
+backtick = Parsec.char '`'
 
-comma :: Parser ()
-comma = void $ Parsec.char ','
+comma :: Parser Char
+comma = Parsec.char ','
 
-dot :: Parser ()
-dot = void $ Parsec.char '.'
+dot :: Parser Char
+dot = Parsec.char '.'
 
-commaAt :: Parser ()
-commaAt = void $ Parsec.string' ",@"
+at :: Parser Char
+at = Parsec.char '@'
+
+commaAt :: Parser String
+commaAt = do
+    c <- comma
+    a <- at
+    return [c, a]
 
 character :: Parser Char
 character = Parsec.try namedCharacter <|> Parsec.try hexCharacter <|> escapedCharacter
@@ -185,8 +191,7 @@ explicitSign :: Parser Char
 explicitSign = Parsec.oneOf "+-"
 
 specialSubsequent :: Parser Char
--- TODO: Factor out dot/at
-specialSubsequent = explicitSign <|> Parsec.oneOf ".@"
+specialSubsequent = explicitSign <|> dot <|> at
 
 verticalLine :: Parser Char
 verticalLine = Parsec.char '|'
@@ -209,14 +214,12 @@ peculiarIdentifier = Parsec.try (do
         return $ [sign, signSubsequent'] ++ subsequents)
     <|> Parsec.try (do
         sign <- explicitSign
-        -- TODO: Factor out dot
-        dot' <- Parsec.char '.'
+        dot' <- dot
         dotSubsequent' <- dotSubsequent
         subsequents <- Parsec.many subsequent
         return $ [sign, dot', dotSubsequent'] ++ subsequents)
     <|> Parsec.try (do
-        -- TODO: Factor out dot
-        dot' <- Parsec.char '.'
+        dot' <- dot
         dotSubsequent' <- dotSubsequent
         subsequents <- Parsec.many subsequent
         return $ [dot', dotSubsequent'] ++ subsequents)
@@ -225,12 +228,10 @@ peculiarIdentifier = Parsec.try (do
     <|> Parsec.try (pure <$> explicitSign)
 
 signSubsequent :: Parser Char
--- TODO: Factor out at
-signSubsequent = initial <|> explicitSign <|> Parsec.char '@'
+signSubsequent = initial <|> explicitSign <|> at
 
 dotSubsequent :: Parser Char
--- TODO: Factor out dot
-dotSubsequent = signSubsequent <|> Parsec.char '.'
+dotSubsequent = signSubsequent <|> dot
 
 -- Number (TODO)
 -- TODO: Exactness
@@ -349,7 +350,7 @@ realPlusUrealI r = do
 polarComplex :: Radix -> Parser Complex
 polarComplex r = do
     r' <- real r
-    void $ Parsec.char '@'
+    void at
     theta <- real r
     return $ Polar r' theta
 
@@ -429,7 +430,7 @@ readMantissa s = foldl (\x (i, d) -> x + fromIntegral (digitToInt d) * 10 ^^ (-i
 
 fractionalDecimal10 :: Parser Rational
 fractionalDecimal10 = do
-    void $ Parsec.char '.'
+    void dot
     d <- readMantissa <$> Parsec.many1 (digit' Decimal)
     s <- Parsec.option 0 suffix
     return $ Double (d * 10 ^ s)
@@ -437,7 +438,7 @@ fractionalDecimal10 = do
 fullDecimal10 :: Parser Rational
 fullDecimal10 = do
     integerPart <- uinteger Decimal
-    void $ Parsec.char '.'
+    void dot
     fractionalPart <- readMantissa <$> Parsec.many (digit' Decimal)
     s <- Parsec.option 0 suffix
     return . Double $ (fromIntegral integerPart + fractionalPart) * 10 ^ s
