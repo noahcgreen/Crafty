@@ -64,7 +64,7 @@ testParseIdentifier = TestLabel "Identifier" . TestCase $ do
 
 testParsePipedIdentifier :: Test
 testParsePipedIdentifier = TestLabel "Piped identifier" . TestCase $ do
-    result <- parse' "|an IDENTIFIER \x0;|"
+    result <- parse' "|an IDENTIFIER \\x0;|"
     result @?= Symbol "an IDENTIFIER \NUL"
 
 identifierTests :: Test
