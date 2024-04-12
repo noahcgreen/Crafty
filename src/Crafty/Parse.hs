@@ -75,9 +75,10 @@ hexCharacter :: Parser Char
 hexCharacter = do
     void $ Parsec.string' "#\\x"
     scalar <- Parsec.many1 Parsec.hexDigit
-    case readLitChar ("\\x" ++ scalar) of
-        ((c, _):_) -> return c
-        _ -> fail $ "Unparseable hex scalar: " ++ scalar
+    maybe
+        (fail $ "Unparseable hex scalar: " ++ scalar)
+        return
+        (readHexScalar scalar)
 
 escapedCharacter :: Parser Char
 escapedCharacter = Parsec.string' "#\\" *> Parsec.anyChar
@@ -114,15 +115,20 @@ mnemonicEscape = (Parsec.string' "\\a" $> "\a")
     <|> (Parsec.string' "\\n" $> "\n")
     <|> (Parsec.string' "\\r" $> "\r")
 
+readHexScalar :: String -> Maybe Char
+readHexScalar scalar = case readLitChar ("\\x" ++ scalar) of
+    ((c, _):_) -> return c
+    _ -> fail $ "Unparseable hex scalar: " ++ scalar
+
 inlineHexEscape :: Parser String
 inlineHexEscape = do
     void $ Parsec.string' "\\x"
     scalar <- Parsec.many1 Parsec.hexDigit
     void $ Parsec.char ';'
-    -- TODO: Factor hex scalar value out of this and hexCharacter
-    case readLitChar ("\\x" ++ scalar) of
-        ((c, _):_) -> return [c]
-        _ -> fail $ "Unparseable hex scalar: " ++ scalar
+    pure $ maybe
+        (fail $ "Unparseable hex scalar: " ++ scalar)
+        return
+        (readHexScalar scalar)
 
 escapedNewline :: Parser String
 escapedNewline = Parsec.char '\\'
