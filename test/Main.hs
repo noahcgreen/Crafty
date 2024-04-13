@@ -156,6 +156,17 @@ stringTests = TestLabel "Strings" $ TestList [
     testEscapedStringCharacters,
     testMultiCharacterString]
 
+-- Vectors
+
+testEmptyVector :: Test
+testEmptyVector = TestLabel "Empty vector" . TestCase $
+    parse' "#()" >>= (@?= Vector [])
+
+vectorTests :: Test
+vectorTests = TestLabel "Vectors" $ TestList [
+    testEmptyVector
+    ]
+
 -- All tests
 
 allTests :: Test
@@ -164,7 +175,8 @@ allTests = TestList [
     numberTests,
     booleanTests,
     characterTests,
-    stringTests
+    stringTests,
+    vectorTests
     ]
 
 main :: IO ()
