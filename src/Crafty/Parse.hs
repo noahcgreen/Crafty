@@ -518,7 +518,8 @@ whitespace = void intralineWhitespace <|> void lineEnding <?> "whitespace"
 comment :: Parser ()
 comment = Parsec.try lineComment
     <|> Parsec.try nestedComment
-    <?> "comment" -- TODO <|> datumComment
+    <|> Parsec.try datumComment
+    <?> "comment"
 
 lineComment :: Parser ()
 lineComment = void $ do
@@ -546,9 +547,8 @@ commentText = void $ Parsec.manyTill Parsec.anyChar (Parsec.try $ Parsec.lookAhe
 commentCont :: Parser ()
 commentCont = Parsec.try nestedComment <|> Parsec.try commentText
 
--- TODO: Do this after datum parser
--- datumComment :: Parser ()
--- datumComment = Parsec.string' "#;" *> intertokenSpace *> datum
+datumComment :: Parser ()
+datumComment = void $ Parsec.string "#;" *> intertokenSpace *> datum
 
 intertokenSpace :: Parser ()
 intertokenSpace = void $ Parsec.many atmosphere
