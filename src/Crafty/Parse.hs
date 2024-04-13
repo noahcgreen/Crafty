@@ -428,7 +428,13 @@ parseDigits r = toInteger . foldl (\x d -> x * r' + digitToInt d) 0
             Hexadecimal -> 16
 
 readMantissa :: String -> Double
-readMantissa s = foldl (\x (i, d) -> x + fromIntegral (digitToInt d) * 10 ^^ (-i)) 0 (zip [1..] s)
+readMantissa s = foldl (\x (i, d) -> x + y i d) 0 (zip integers s)
+    where
+        y i d = let
+            d' = fromIntegral (digitToInt d)
+            e = 10 ^^ (-i)
+            in d' * e
+        integers = [1..] :: [Integer]
 
 fractionalDecimal10 :: Parser Rational
 fractionalDecimal10 = do
