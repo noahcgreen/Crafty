@@ -14,8 +14,8 @@ data FoldCaseState = FoldCase | NoFoldCase deriving (Show)
 
 type Parser = Parsec.Parsec String FoldCaseState
 
-read :: String -> String -> Either SomeException Datum
-read file source = case Parsec.runParser (datum <* Parsec.eof) FoldCase file source of
+read :: String -> String -> Either SomeException [Datum]
+read file source = case Parsec.runParser (data' <* Parsec.eof) FoldCase file source of
     Left e -> Left $ toException e
     Right result -> Right result
 
@@ -569,6 +569,12 @@ datum = Parsec.try simpleDatum
     <|> Parsec.try labeled
     <|> Label <$> Parsec.try label <* Parsec.char '#'
 
+data' :: Parser [Datum]
+data' = Parsec.sepBy datum intertokenSpace
+
+data1 :: Parser [Datum]
+data1 = Parsec.sepBy1 datum intertokenSpace
+
 label :: Parser Integer
 label = Parsec.char '#' *> uinteger Decimal
 
@@ -579,17 +585,17 @@ labeled = do
     Labeled label' <$> datum
 
 vector :: Parser [Datum]
-vector = vectorStart *> Parsec.many datum <* rightParenthesis
+vector = vectorStart *> data' <* rightParenthesis
 
 -- TODO: Abbreviation/abbrev prefix
 
 list :: Parser [Datum]
 list = Parsec.try properList <|> Parsec.try improperList
     where
-        properList = leftParenthesis *> Parsec.many datum <* rightParenthesis
+        properList = leftParenthesis *> data' <* rightParenthesis
         improperList = do
             void leftParenthesis
-            initial' <- Parsec.many1 datum
+            initial' <- data1
             void dot
             tail' <- datum
             void rightParenthesis
