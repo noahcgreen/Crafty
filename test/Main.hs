@@ -239,12 +239,27 @@ testLineCommentWithData :: Test
 testLineCommentWithData = TestLabel "Line comment with data" . TestCase $
     "; Comment 1\nx;Comment 2\ny" `parsesTo` [Symbol "x", Symbol "y"]
 
+testBlockComment :: Test
+testBlockComment = TestLabel "Block comment" . TestCase $
+    "#| Comment |#" `parsesTo` []
+
+testBlockCommentWithData :: Test
+testBlockCommentWithData = TestLabel "Block comment with data" . TestCase $
+    "x #| Comment\n1 |# y #| Comment 2 |# z" `parsesTo` [Symbol "x", Symbol "y", Symbol "z"]
+
+testNestedBlockComments :: Test
+testNestedBlockComments = TestLabel "Nested block comments" . TestCase $
+    "#| Outer #| Inner |# Outer |#" `parsesTo` []
+
 whitespaceTests :: Test
 whitespaceTests = TestLabel "Whitespace" $ TestList [
     testEmptySource,
     testOnlyWhitespace,
     testLineComment,
-    testLineCommentWithData
+    testLineCommentWithData,
+    testBlockComment,
+    testBlockCommentWithData,
+    testNestedBlockComments
     ]
 
 -- All tests

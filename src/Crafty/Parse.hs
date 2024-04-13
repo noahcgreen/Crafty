@@ -518,18 +518,30 @@ whitespace = void intralineWhitespace <|> void lineEnding <?> "whitespace"
 comment :: Parser ()
 comment = Parsec.try lineComment
     <|> Parsec.try nestedComment
-    <?> "comment" -- <|> datumComment
+    <?> "comment" -- TODO <|> datumComment
 
 lineComment :: Parser ()
 lineComment = void $ do
     void $ Parsec.char ';'
     Parsec.manyTill Parsec.anyChar (Parsec.try $ void lineEnding <|> Parsec.eof)
 
+blockCommentStart :: Parser ()
+blockCommentStart = void $ Parsec.string "#|"
+
+blockCommentEnd :: Parser ()
+blockCommentEnd = void $ Parsec.string "|#"
+
 nestedComment :: Parser ()
-nestedComment = void $ Parsec.string' "#|" *> commentText *> Parsec.many commentCont *> Parsec.string' "|#"
+nestedComment = void $ do
+    blockCommentStart
+    commentText
+    void $ Parsec.many commentCont
+    blockCommentEnd
 
 commentText :: Parser ()
-commentText = void $ Parsec.manyTill Parsec.anyChar (Parsec.try $ Parsec.string' "#|" <|> Parsec.string' "|#")
+commentText = void $ Parsec.manyTill Parsec.anyChar (Parsec.try $ Parsec.lookAhead boundary)
+    where
+        boundary = blockCommentStart <|> blockCommentEnd
 
 commentCont :: Parser ()
 commentCont = Parsec.try nestedComment <|> Parsec.try commentText
