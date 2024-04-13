@@ -1,8 +1,10 @@
 module Crafty.Parse where
 
 import Control.Monad (void)
+import Data.Bits (toIntegralSized)
 import Data.Char (readLitChar, digitToInt)
 import Data.Functor (($>))
+import Data.Word (Word8)
 import Text.Parsec ((<|>), (<?>))
 import qualified Text.Parsec as Parsec
 import Prelude hiding (Rational, Real)
@@ -556,7 +558,8 @@ data Datum
     | Character Char
     | String String
     | Symbol String
-    -- | ByteVector [Datum] -- TODO
+    -- TODO: Use appropriate collection types (e.g. fixed-size containers for vector/bytevector)
+    | ByteVector [Word8]
     | List [Datum]
     | Vector [Datum]
     | Labeled Integer Datum
@@ -569,8 +572,11 @@ datum = Parsec.try simpleDatum
     <|> Parsec.try labeled
     <|> Label <$> Parsec.try label <* Parsec.char '#'
 
+many :: Parser a -> Parser [a]
+many p = Parsec.sepBy p intertokenSpace
+
 data' :: Parser [Datum]
-data' = Parsec.sepBy datum intertokenSpace
+data' = many datum
 
 data1 :: Parser [Datum]
 data1 = Parsec.sepBy1 datum intertokenSpace
@@ -601,6 +607,32 @@ list = Parsec.try properList <|> Parsec.try improperList
             void rightParenthesis
             return $ initial' ++ [tail']
 
+-- Bytevector
+
+-- uinteger of any radix
+uinteger' :: Parser Integer
+uinteger' = Parsec.try (uinteger Binary)
+    <|> Parsec.try (uinteger Octal)
+    <|> Parsec.try (uinteger Decimal)
+    <|> Parsec.try (uinteger Hexadecimal)
+
+byte :: Parser Word8
+byte = do
+    -- TODO: Support any exact integer, e.g. ratios
+    x <- number
+    case x of
+        (Real (Rational (Integer i))) -> case toIntegralSized i of
+            Just b -> return b
+            Nothing -> fail $ "Bytevector element is not a byte: " ++ show x
+        _ -> fail $ "Bytevector element is not a byte: " ++ show x
+
+bytevector :: Parser [Word8]
+bytevector = do
+    byteVectorStart
+    bytes <- many byte
+    rightParenthesis
+    return bytes
+
 -- TODO: Abbrev
 compoundDatum :: Parser Datum
 compoundDatum = List <$> Parsec.try list <|> Vector <$> Parsec.try vector
@@ -614,4 +646,4 @@ simpleDatum = Boolean <$> Parsec.try boolean
     <|> Character <$> Parsec.try character
     <|> String <$> Parsec.try string
     <|> Symbol <$> Parsec.try symbol
-    -- <|> ByteVector <$> Parsec.try byteVector
+    <|> ByteVector <$> Parsec.try bytevector

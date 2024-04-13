@@ -28,6 +28,8 @@ parsesTo source datum' = parse' source >>= (@?= datum')
 
 -- Tests
 
+-- TODO: Test failure cases
+
 -- Booleans
 
 testParseShortTrue :: Test
@@ -203,6 +205,22 @@ vectorTests = TestLabel "Vectors" $ TestList [
     testIntegerVector
     ]
 
+-- Bytevectors
+
+testEmptyBytevector :: Test
+testEmptyBytevector = TestLabel "Empty bytevector" . TestCase $
+    "#u8()" `parsesTo` [ByteVector []]
+
+testBasicBytevector :: Test
+testBasicBytevector = TestLabel "Basic bytevector" . TestCase $
+    "#u8(0 10 5)" `parsesTo` [ByteVector [0, 10, 5]]
+
+bytevectorTests :: Test
+bytevectorTests = TestLabel "Bytevectors" $ TestList [
+    testEmptyBytevector,
+    testBasicBytevector
+    ]
+
 -- All tests
 
 allTests :: Test
@@ -212,7 +230,8 @@ allTests = TestList [
     booleanTests,
     characterTests,
     stringTests,
-    vectorTests
+    vectorTests,
+    bytevectorTests
     ]
 
 main :: IO ()
