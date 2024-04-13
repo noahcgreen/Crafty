@@ -516,10 +516,14 @@ whitespace :: Parser ()
 whitespace = void intralineWhitespace <|> void lineEnding <?> "whitespace"
 
 comment :: Parser ()
-comment = lineComment <|> nestedComment <?> "comment" -- <|> datumComment
+comment = Parsec.try lineComment
+    <|> Parsec.try nestedComment
+    <?> "comment" -- <|> datumComment
 
 lineComment :: Parser ()
-lineComment = void $ Parsec.char ';' *> Parsec.manyTill Parsec.anyChar (Parsec.try lineEnding)
+lineComment = void $ do
+    void $ Parsec.char ';'
+    Parsec.manyTill Parsec.anyChar (Parsec.try $ void lineEnding <|> Parsec.eof)
 
 nestedComment :: Parser ()
 nestedComment = void $ Parsec.string' "#|" *> commentText *> Parsec.many commentCont *> Parsec.string' "|#"
@@ -528,17 +532,19 @@ commentText :: Parser ()
 commentText = void $ Parsec.manyTill Parsec.anyChar (Parsec.try $ Parsec.string' "#|" <|> Parsec.string' "|#")
 
 commentCont :: Parser ()
-commentCont = nestedComment <|> commentText
+commentCont = Parsec.try nestedComment <|> Parsec.try commentText
 
 -- TODO: Do this after datum parser
 -- datumComment :: Parser ()
 -- datumComment = Parsec.string' "#;" *> intertokenSpace *> datum
 
 intertokenSpace :: Parser ()
-intertokenSpace = void $ Parsec.many1 atmosphere
+intertokenSpace = void $ Parsec.many atmosphere
 
 atmosphere :: Parser ()
-atmosphere = whitespace <|> comment <|> directive
+atmosphere = Parsec.try whitespace
+    <|> Parsec.try comment
+    <|> Parsec.try directive
 
 directive :: Parser ()
 directive = foldCaseDirective <|> noFoldCaseDirective <?> "directive"
@@ -573,13 +579,16 @@ datum = Parsec.try simpleDatum
     <|> Label <$> Parsec.try label <* Parsec.char '#'
 
 many :: Parser a -> Parser [a]
-many p = Parsec.sepBy p intertokenSpace
+many p = intertokenSpace *> Parsec.sepEndBy p intertokenSpace
+
+many1 :: Parser a -> Parser [a]
+many1 p = intertokenSpace *> Parsec.sepEndBy1 p intertokenSpace
 
 data' :: Parser [Datum]
 data' = many datum
 
 data1 :: Parser [Datum]
-data1 = Parsec.sepBy1 datum intertokenSpace
+data1 = many1 datum
 
 label :: Parser Integer
 label = Parsec.char '#' *> uinteger Decimal

@@ -221,6 +221,32 @@ bytevectorTests = TestLabel "Bytevectors" $ TestList [
     testBasicBytevector
     ]
 
+-- Whitespace and comments
+
+testEmptySource :: Test
+testEmptySource = TestLabel "Empty source" . TestCase $
+    "" `parsesTo` []
+
+testOnlyWhitespace :: Test
+testOnlyWhitespace = TestLabel "Only whitespace" . TestCase $
+    "\n\r \t" `parsesTo` []
+
+testLineComment :: Test
+testLineComment = TestLabel "Line comment" . TestCase $
+    "; Some text" `parsesTo` []
+
+testLineCommentWithData :: Test
+testLineCommentWithData = TestLabel "Line comment with data" . TestCase $
+    "; Comment 1\nx;Comment 2\ny" `parsesTo` [Symbol "x", Symbol "y"]
+
+whitespaceTests :: Test
+whitespaceTests = TestLabel "Whitespace" $ TestList [
+    testEmptySource,
+    testOnlyWhitespace,
+    testLineComment,
+    testLineCommentWithData
+    ]
+
 -- All tests
 
 allTests :: Test
@@ -231,7 +257,8 @@ allTests = TestList [
     characterTests,
     stringTests,
     vectorTests,
-    bytevectorTests
+    bytevectorTests,
+    whitespaceTests
     ]
 
 main :: IO ()
