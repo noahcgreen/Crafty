@@ -306,4 +306,4 @@ allTests = TestList [
 main :: IO ()
 main = do
     counts <- runTestTT allTests
-    if failures counts > 0 then exitFailure else exitSuccess
+    if (failures counts > 0 || errors counts > 0) then exitFailure else exitSuccess
