@@ -552,9 +552,7 @@ nestedComment = void $ do
     blockCommentEnd
 
 commentText :: Parser ()
-commentText = void $ Parsec.manyTill Parsec.anyChar (Parsec.try $ Parsec.lookAhead boundary)
-    where
-        boundary = blockCommentStart <|> blockCommentEnd
+commentText = void $ Parsec.notFollowedBy (blockCommentStart <|> blockCommentEnd) *> Parsec.anyChar
 
 commentCont :: Parser ()
 commentCont = Parsec.try nestedComment <|> Parsec.try commentText
