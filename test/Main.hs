@@ -272,6 +272,22 @@ whitespaceTests = TestLabel "Whitespace" $ TestList [
     testDatumCommentWithData
     ]
 
+-- Directives
+
+testFoldCase :: Test
+testFoldCase = TestLabel "Fold case" . TestCase $
+    "#!fold-case aBc XyZ ß" `parsesTo` [Symbol "abc", Symbol "xyz", Symbol "ss"]
+
+testNoFoldCase :: Test
+testNoFoldCase = TestLabel "No fold case" . TestCase $
+    "#!fold-case aBc #!no-fold-case XyZ ß" `parsesTo` [Symbol "abc", Symbol "XyZ", Symbol "ß"]
+
+directiveTests :: Test
+directiveTests = TestLabel "Directives" $ TestList [
+    testFoldCase,
+    testNoFoldCase
+    ]
+
 -- All tests
 
 allTests :: Test
@@ -283,7 +299,8 @@ allTests = TestList [
     stringTests,
     vectorTests,
     bytevectorTests,
-    whitespaceTests
+    whitespaceTests,
+    directiveTests
     ]
 
 main :: IO ()

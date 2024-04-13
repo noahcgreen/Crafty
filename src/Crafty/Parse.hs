@@ -2,6 +2,7 @@ module Crafty.Parse where
 
 import Control.Monad (void)
 import Data.Bits (toIntegralSized)
+import qualified Unicode.Char.Case as Case
 import Data.Char (readLitChar, digitToInt)
 import Data.Functor (($>))
 import Data.Word (Word8)
@@ -17,7 +18,7 @@ data FoldCaseState = FoldCase | NoFoldCase deriving (Show)
 type Parser = Parsec.Parsec String FoldCaseState
 
 read :: String -> String -> Either SomeException [Datum]
-read file source = case Parsec.runParser (data' <* Parsec.eof) FoldCase file source of
+read file source = case Parsec.runParser (data' <* Parsec.eof) NoFoldCase file source of
     Left e -> Left $ toException e
     Right result -> Right result
 
@@ -155,10 +156,15 @@ lineEnding = pure <$> Parsec.char '\n'
 
 -- TODO: Integrate with foldCase (CI)
 identifier :: Parser String
-identifier = Parsec.try initialSubsequents
-    <|> Parsec.try pipedIdentifier
-    <|> peculiarIdentifier
-    <?> "identifier"
+identifier = do
+    name <- Parsec.try initialSubsequents
+        <|> Parsec.try pipedIdentifier
+        <|> peculiarIdentifier
+        <?> "identifier"
+    foldCaseState <- Parsec.getState
+    return $ case foldCaseState of
+        FoldCase -> name >>= Case.toCaseFoldString
+        NoFoldCase -> name
 
 initialSubsequents :: Parser String
 initialSubsequents = do
