@@ -10,6 +10,7 @@ import Text.Parsec ((<|>), (<?>))
 import qualified Text.Parsec as Parsec
 import Prelude hiding (Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
+import Debug.Trace (trace)
 
 -- read
 
@@ -209,7 +210,6 @@ symbolElement = Parsec.try (pure <$> Parsec.noneOf "|\\")
     <|> Parsec.try mnemonicEscape
     <|> Parsec.try (pure <$> escapedPipe)
 
--- TODO: Factor out an "escaped" parser
 escapedPipe :: Parser Char
 escapedPipe = Parsec.char '\\' *> Parsec.char '|'
 
@@ -240,26 +240,6 @@ signSubsequent = initial <|> explicitSign <|> at
 dotSubsequent :: Parser Char
 dotSubsequent = signSubsequent <|> dot
 
--- Number (TODO)
--- TODO: Exactness
-
--- TODO: Encode exactness
--- data Number 
---     = Integer Integer
---     | Double Double
---     | Fraction Integer Integer
---     | InfNumber Inf
---     | NanNumber Nan
---     deriving (Show)
-
--- TODO: Clean this up
--- multiply :: Number -> Int -> Number
--- multiply n i = case n of
---     Integer x -> Integer (x * i)
---     Double x -> Double (x * i)
---     Fraction x y -> Fraction (x * i) y
---     _ -> n -- FIXME
-
 -- Number
 
 number :: Parser Complex
@@ -273,7 +253,7 @@ number = Parsec.try (number' Binary)
 number' :: Radix -> Parser Complex
 number' r = do
     prefix' <- prefix r
-    n <- complex r
+    n <- complex prefix' r
     return n
 
 -- Complex
@@ -301,93 +281,93 @@ nanI = do
 infNanI :: Parser Complex
 infNanI = infI <|> nanI
 
-positiveUrealI :: Radix -> Parser Complex
-positiveUrealI r = do
+positiveUrealI :: Maybe Exactness -> Radix -> Parser Complex
+positiveUrealI exactness' r = do
     void $ Parsec.char '+'
-    ur <- ureal r
+    ur <- ureal exactness' r
     void $ Parsec.char 'i'
     return $ Rectangular (Rational $ Integer 0) ur
 
-negativeUrealI :: Radix -> Parser Complex
-negativeUrealI r = do
+negativeUrealI :: Maybe Exactness -> Radix -> Parser Complex
+negativeUrealI exactness' r = do
     void $ Parsec.char '-'
-    ur <- ureal r
+    ur <- ureal exactness' r
     void $ Parsec.char 'i'
     -- TODO: Make negative
     -- return $ Inexact (Integer 0) (multiply ur -1)
     return $ Rectangular (Rational $ Integer 0) ur
 
-realInfNanI :: Radix -> Parser Complex
-realInfNanI r = do
-    real' <- real r
+realInfNanI :: Maybe Exactness -> Radix -> Parser Complex
+realInfNanI exactness' r = do
+    real' <- real exactness' r
     infNan' <- infNan
     void $ Parsec.char 'i'
     return $ Rectangular real' infNan'
 
-realNegativeI :: Radix -> Parser Complex
-realNegativeI r = do
-    real' <- real r
+realNegativeI :: Maybe Exactness -> Radix -> Parser Complex
+realNegativeI exactness' r = do
+    real' <- real exactness' r
     void $ Parsec.string "-i"
     -- TODO: Negative
     return $ Rectangular real' (Rational $ Integer 0)
 
-realPositiveI :: Radix -> Parser Complex
-realPositiveI r = do
-    real' <- real r
+realPositiveI :: Maybe Exactness -> Radix -> Parser Complex
+realPositiveI exactness' r = do
+    real' <- real exactness' r
     void $ Parsec.string "+i"
     return $ Rectangular real' (Rational $ Integer 0)
 
-realMinusUrealI :: Radix -> Parser Complex
-realMinusUrealI r = do
-    real' <- real r
+realMinusUrealI :: Maybe Exactness -> Radix -> Parser Complex
+realMinusUrealI exactness' r = do
+    real' <- real exactness' r
     void $ Parsec.char '-'
-    imaginary <- ureal r
+    imaginary <- ureal exactness' r
     void $ Parsec.char 'i'
     -- TODO: Negative
     return $ Rectangular real' imaginary
 
-realPlusUrealI :: Radix -> Parser Complex
-realPlusUrealI r = do
-    real' <- real r
+realPlusUrealI :: Maybe Exactness -> Radix -> Parser Complex
+realPlusUrealI exactness' r = do
+    real' <- real exactness' r
     void $ Parsec.char '+'
-    imaginary <- ureal r
+    imaginary <- ureal exactness' r
     void $ Parsec.char 'i'
     return $ Rectangular real' imaginary
 
-polarComplex :: Radix -> Parser Complex
-polarComplex r = do
-    r' <- real r
+polarComplex :: Maybe Exactness -> Radix -> Parser Complex
+polarComplex exactness' r = do
+    r' <- real exactness' r
     void at
-    theta <- real r
+    theta <- real exactness' r
     return $ Polar r' theta
 
-realComplex :: Radix -> Parser Complex
-realComplex r = Real <$> real r
+realComplex :: Maybe Exactness -> Radix -> Parser Complex
+realComplex exactness' r = Real <$> real exactness' r
 
-complex :: Radix -> Parser Complex
-complex r = iPlus
+complex :: Maybe Exactness -> Radix -> Parser Complex
+complex exactness' r = iPlus
     <|> Parsec.try iMinus
     <|> Parsec.try infNanI
-    <|> Parsec.try (polarComplex r)
-    <|> Parsec.try (positiveUrealI r)
-    <|> Parsec.try (negativeUrealI r)
-    <|> Parsec.try (realInfNanI r)
-    <|> Parsec.try (realNegativeI r)
-    <|> Parsec.try (realPositiveI r)
-    <|> Parsec.try (realMinusUrealI r)
-    <|> Parsec.try (realPlusUrealI r)
-    <|> Parsec.try (realComplex r)
+    <|> Parsec.try (polarComplex exactness' r)
+    <|> Parsec.try (positiveUrealI exactness' r)
+    <|> Parsec.try (negativeUrealI exactness' r)
+    <|> Parsec.try (realInfNanI exactness' r)
+    <|> Parsec.try (realNegativeI exactness' r)
+    <|> Parsec.try (realPositiveI exactness' r)
+    <|> Parsec.try (realMinusUrealI exactness' r)
+    <|> Parsec.try (realPlusUrealI exactness' r)
+    <|> Parsec.try (realComplex exactness' r)
 
 -- Real
 
 data Real = Nan | PositiveInf | NegativeInf | Rational Rational deriving (Show, Eq)
 
-real :: Radix -> Parser Real
-real r = Parsec.try infNan <|> Parsec.try signedReal
+real :: Maybe Exactness -> Radix -> Parser Real
+real exactness' r = Parsec.try infNan <|> Parsec.try signedReal
     where
         signedReal = do
             sign' <- Parsec.option Positive sign
-            n <- ureal r
+            n <- ureal exactness' r
             return n
             -- TODO: Sign
             -- return . RealNumber $ case n of
@@ -395,9 +375,9 @@ real r = Parsec.try infNan <|> Parsec.try signedReal
             --     Double d -> Double (fromIntegral s) * fromIntegral d
             --     Fraction x y -> Fraction (fromIntegral s * x) y
 
-ureal :: Radix -> Parser Real
-ureal r = Rational <$> case r of
-    Decimal -> Parsec.try (ratio r) <|> Parsec.try decimal10 <|> Parsec.try (Integer <$> uinteger r)
+ureal :: Maybe Exactness -> Radix -> Parser Real
+ureal exactness' r = Rational <$> case r of
+    Decimal -> Parsec.try (ratio r) <|> Parsec.try (decimal10 exactness') <|> Parsec.try (Integer <$> uinteger r)
     _ -> Parsec.try (ratio r) <|> Parsec.try (Integer <$> uinteger r)
 
 -- Rational
@@ -411,9 +391,9 @@ ratio r = do
     y <- uinteger r
     return $ Ratio x y
 
-decimal10 :: Parser Rational
-decimal10 = Parsec.try fractionalDecimal10
-    <|> Parsec.try fullDecimal10
+decimal10 :: Maybe Exactness -> Parser Rational
+decimal10 exactness' = Parsec.try (fractionalDecimal10 exactness')
+    <|> Parsec.try (fullDecimal10 exactness')
     <|> Parsec.try uintegerDecimal10
 
 uintegerDecimal10 :: Parser Rational
@@ -441,29 +421,56 @@ readMantissa s = foldl (\x (i, d) -> x + y i d) 0 (zip integers s)
             in d' * e
         integers = [1..] :: [Integer]
 
-fractionalDecimal10 :: Parser Rational
-fractionalDecimal10 = do
+-- TODO: Exponent should imply inexactness if not specified
+fractionalDecimal10 :: Maybe Exactness -> Parser Rational
+fractionalDecimal10 exactness' = do
     void dot
-    d <- readMantissa <$> Parsec.many1 (digit' Decimal)
+    mantissaDigits <- removeTrailingZeros <$> Parsec.many1 (digit' Decimal)
+    let mantissa = parseDigits Decimal mantissaDigits
     s <- Parsec.option 0 suffix
-    return $ Double (d * 10 ^ s)
+    return $ case exactness' of
+        Just Exact -> let
+            x = mantissa
+            y = 10 ^ length mantissaDigits
+            in Ratio (x * 10 ^ s) y
+        _ -> let
+            fractionalPart = fromInteger mantissa / (10 ^^ length mantissaDigits)
+            in Double $ fractionalPart * 10 ^ s
 
-fullDecimal10 :: Parser Rational
-fullDecimal10 = do
+numberOfDigits :: Integer -> Integer
+numberOfDigits x = let x' = fromInteger x :: Double in 1 + floor (logBase 10 x')
+
+removeTrailingZeros :: String -> String
+removeTrailingZeros s = let (result, _) = foldr (\c (s', z) -> combine s' c z) ([], False) s in result
+    where
+        combine s' c z = case (c, z) of
+            ('0', False) -> (s', False)
+            _ -> (c:s', True)
+
+fullDecimal10 :: Maybe Exactness -> Parser Rational
+fullDecimal10 exactness' = do
     integerPart <- uinteger Decimal
     void dot
-    fractionalPart <- readMantissa <$> Parsec.many (digit' Decimal)
+    mantissaDigits <- removeTrailingZeros <$> Parsec.many (digit' Decimal)
+    let mantissa = parseDigits Decimal mantissaDigits
     s <- Parsec.option 0 suffix
-    return . Double $ (fromIntegral integerPart + fractionalPart) * 10 ^ s
+    return $ case exactness' of
+        Just Exact -> let
+            e = 10 ^ toInteger (length mantissaDigits) :: Integer
+            x = integerPart * e + mantissa
+            y = 10 ^ length mantissaDigits
+            in Ratio (x * 10 ^ s) y
+        _ -> let
+            fractionalPart = fromInteger mantissa / (10 ^^ length mantissaDigits)
+            in Double $ (fromIntegral integerPart + fractionalPart) * 10 ^ s
 
 uinteger :: Radix -> Parser Integer
--- TODO: Remove duplication with suffix
 uinteger r = parseDigits r <$> Parsec.many1 (digit' r)
 
-prefix :: Radix -> Parser Exactness
+prefix :: Radix -> Parser (Maybe Exactness)
 prefix r = Parsec.try (radix r *> exactness') <|> Parsec.try (exactness' <* radix r)
     where
-        exactness' = Parsec.option Exact exactness
+        exactness' = Parsec.optionMaybe exactness
 
 inf :: Parser Real
 inf = Parsec.string' "+inf.0" $> PositiveInf
