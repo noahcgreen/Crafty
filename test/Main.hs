@@ -282,10 +282,20 @@ testNoFoldCase :: Test
 testNoFoldCase = TestLabel "No fold case" . TestCase $
     "#!fold-case aBc #!no-fold-case XyZ ß" `parsesTo` [Symbol "abc", Symbol "XyZ", Symbol "ß"]
 
+testResetToFoldCase :: Test
+testResetToFoldCase = TestLabel "Reset to fold case" . TestCase $
+    "#!fold-case aBc #!no-fold-case DeF #!fold-case gHi" `parsesTo` [Symbol "abc", Symbol "DeF", Symbol "ghi"]
+
+testResetToNoFoldCase :: Test
+testResetToNoFoldCase = TestLabel "Reset to no fold case" . TestCase $
+    "#!no-fold-case aBc #!fold-case DeF #!no-fold-case gHi" `parsesTo` [Symbol "aBc", Symbol "def", Symbol "gHi"]
+
 directiveTests :: Test
 directiveTests = TestLabel "Directives" $ TestList [
     testFoldCase,
-    testNoFoldCase
+    testNoFoldCase,
+    testResetToFoldCase,
+    testResetToNoFoldCase
     ]
 
 -- All tests

@@ -154,7 +154,6 @@ lineEnding = pure <$> Parsec.char '\n'
     <|> pure <$> Parsec.char '\r'
     <?> "line ending"
 
--- TODO: Integrate with foldCase (CI)
 identifier :: Parser String
 identifier = do
     name <- Parsec.try initialSubsequents
