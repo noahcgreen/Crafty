@@ -384,12 +384,16 @@ ureal exactness' r = Rational <$> case r of
 
 data Rational = Ratio Integer Integer | Double Double | Integer Integer deriving (Show, Eq)
 
+-- Construct a ratio in simplest terms
+makeRatio :: Integer -> Integer -> Rational
+makeRatio x y = let d = gcd x y in Ratio (x `div` d) (y `div` d)
+
 ratio :: Radix -> Parser Rational
 ratio r = do
     x <- uinteger r
     void $ Parsec.char '/'
     y <- uinteger r
-    return $ Ratio x y
+    return $ makeRatio x y
 
 decimal10 :: Maybe Exactness -> Parser Rational
 decimal10 exactness' = Parsec.try (fractionalDecimal10 exactness')
@@ -421,21 +425,19 @@ readMantissa s = foldl (\x (i, d) -> x + y i d) 0 (zip integers s)
             in d' * e
         integers = [1..] :: [Integer]
 
--- TODO: Exponent should imply inexactness if not specified
 fractionalDecimal10 :: Maybe Exactness -> Parser Rational
 fractionalDecimal10 exactness' = do
     void dot
-    mantissaDigits <- removeTrailingZeros <$> Parsec.many1 (digit' Decimal)
-    let mantissa = parseDigits Decimal mantissaDigits
+    decimalDigits <- Parsec.many1 (digit' Decimal)
     s <- Parsec.option 0 suffix
+
+    let p = s - toInteger (length decimalDigits)
+    let allDigits = parseDigits Decimal decimalDigits
+
     return $ case exactness' of
-        Just Exact -> let
-            x = mantissa
-            y = 10 ^ length mantissaDigits
-            in Ratio (x * 10 ^ s) y
-        _ -> let
-            fractionalPart = fromInteger mantissa / (10 ^^ length mantissaDigits)
-            in Double $ fractionalPart * 10 ^ s
+        Just Exact | p >= 0 -> Integer $ allDigits * 10 ^ p
+        Just Exact | p < 0 -> makeRatio allDigits (10 ^ (-p))
+        _ -> Double $ fromInteger allDigits * 10 ^^ p
 
 numberOfDigits :: Integer -> Integer
 numberOfDigits x = let x' = fromInteger x :: Double in 1 + floor (logBase 10 x')
@@ -449,20 +451,18 @@ removeTrailingZeros s = let (result, _) = foldr (\c (s', z) -> combine s' c z) (
 
 fullDecimal10 :: Maybe Exactness -> Parser Rational
 fullDecimal10 exactness' = do
-    integerPart <- uinteger Decimal
+    integerDigits <- Parsec.many1 $ digit' Decimal
     void dot
-    mantissaDigits <- removeTrailingZeros <$> Parsec.many (digit' Decimal)
-    let mantissa = parseDigits Decimal mantissaDigits
+    decimalDigits <- Parsec.many $ digit' Decimal
     s <- Parsec.option 0 suffix
+
+    let p = s - toInteger (length decimalDigits)
+    let allDigits = parseDigits Decimal (integerDigits ++ decimalDigits)
+
     return $ case exactness' of
-        Just Exact -> let
-            e = 10 ^ toInteger (length mantissaDigits) :: Integer
-            x = integerPart * e + mantissa
-            y = 10 ^ length mantissaDigits
-            in Ratio (x * 10 ^ s) y
-        _ -> let
-            fractionalPart = fromInteger mantissa / (10 ^^ length mantissaDigits)
-            in Double $ (fromIntegral integerPart + fractionalPart) * 10 ^ s
+        Just Exact | p >= 0 -> Integer $ allDigits * 10 ^ p
+        Just Exact | p < 0 -> makeRatio allDigits (10 ^ (-p))
+        _ -> Double $ fromInteger allDigits * 10 ^^ p
 
 uinteger :: Radix -> Parser Integer
 uinteger r = parseDigits r <$> Parsec.many1 (digit' r)
@@ -482,7 +482,6 @@ nan = (Parsec.string' "+nan.0" <|> Parsec.string' "-nan.0") $> Nan
 infNan :: Parser Real
 infNan = inf <|> nan
 
--- TODO: Preserve suffix for exactness and only multiply it in at runtime?
 suffix :: Parser Integer
 suffix = do
     exponentMarker

@@ -88,15 +88,27 @@ testParseDoubleWithTrailingZeros = TestLabel "Double with trailing zeros" . Test
 
 testParseExactDecimal :: Test
 testParseExactDecimal = TestLabel "Exact decimal" . TestCase $
-    "#e12.340" `parsesTo` [Number . Real . Rational $ Ratio 1234 100]
+    "#e12.340" `parsesTo` [Number . Real . Rational $ Ratio 617 50]
+
+testNormalizeExactDecimalWithExponent :: Test
+testNormalizeExactDecimalWithExponent = TestLabel "Normalize exact decimal" . TestCase $
+    "#e1.23400e1" `parsesTo` [Number . Real . Rational $ Ratio 617 50]
+
+testTrailingDecimal :: Test
+testTrailingDecimal = TestLabel "Trailing decimal" . TestCase $
+    ".123400" `parsesTo` [Number . Real . Rational $ Double 0.1234]
 
 testParseExactTrailingDecimal :: Test
 testParseExactTrailingDecimal = TestLabel "Exact trailing decimal" . TestCase $
-    "#e.120" `parsesTo` [Number . Real . Rational $ Ratio 12 100]
+    "#e.12340" `parsesTo` [Number . Real . Rational $ Ratio 617 5000]
 
 testParseRatio :: Test
 testParseRatio = TestLabel "Parse ratio" . TestCase $
     "1/2" `parsesTo` [Number . Real . Rational $ Ratio 1 2]
+
+testNormalizeRatio :: Test
+testNormalizeRatio = TestLabel "Normalize ratio" . TestCase $
+    "2/4" `parsesTo` [Number . Real . Rational $ Ratio 1 2]
 
 testParseComplex :: Test
 testParseComplex = TestLabel "Parse complex" . TestCase $
@@ -108,8 +120,11 @@ numberTests = TestLabel "Numbers" $ TestList [
     testParseDouble,
     testParseDoubleWithTrailingZeros,
     testParseExactDecimal,
+    testNormalizeExactDecimalWithExponent,
+    testTrailingDecimal,
     testParseExactTrailingDecimal,
     testParseRatio,
+    testNormalizeRatio,
     testParseComplex
     ]
 
