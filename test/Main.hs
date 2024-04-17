@@ -78,6 +78,10 @@ testParseInteger :: Test
 testParseInteger = TestLabel "Parse integer" . TestCase $
     "10" `parsesTo` [Number . Real . Rational $ Integer 10]
 
+testParseNegativeInteger :: Test
+testParseNegativeInteger = TestLabel "Negative integer" . TestCase $
+    "-10" `parsesTo` [Number . Real . Rational $ Integer (-10)]
+
 testParseDouble :: Test
 testParseDouble = TestLabel "Parse double" . TestCase $
     "12.34" `parsesTo` [Number . Real . Rational $ Double 12.34]
@@ -117,6 +121,7 @@ testParseComplex = TestLabel "Parse complex" . TestCase $
 numberTests :: Test
 numberTests = TestLabel "Numbers" $ TestList [
     testParseInteger,
+    testParseNegativeInteger,
     testParseDouble,
     testParseDoubleWithTrailingZeros,
     testParseExactDecimal,

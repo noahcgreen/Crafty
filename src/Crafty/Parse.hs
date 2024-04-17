@@ -10,7 +10,6 @@ import Text.Parsec ((<|>), (<?>))
 import qualified Text.Parsec as Parsec
 import Prelude hiding (Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
-import Debug.Trace (trace)
 
 -- read
 
@@ -215,16 +214,16 @@ escapedPipe = Parsec.char '\\' *> Parsec.char '|'
 
 peculiarIdentifier :: Parser String
 peculiarIdentifier = Parsec.try (do
-        sign <- explicitSign
+        sign' <- explicitSign
         signSubsequent' <- signSubsequent
         subsequents <- Parsec.many subsequent
-        return $ [sign, signSubsequent'] ++ subsequents)
+        return $ [sign', signSubsequent'] ++ subsequents)
     <|> Parsec.try (do
-        sign <- explicitSign
+        sign' <- explicitSign
         dot' <- dot
         dotSubsequent' <- dotSubsequent
         subsequents <- Parsec.many subsequent
-        return $ [sign, dot', dotSubsequent'] ++ subsequents)
+        return $ [sign', dot', dotSubsequent'] ++ subsequents)
     <|> Parsec.try (do
         dot' <- dot
         dotSubsequent' <- dotSubsequent
@@ -368,12 +367,16 @@ real exactness' r = Parsec.try infNan <|> Parsec.try signedReal
         signedReal = do
             sign' <- Parsec.option Positive sign
             n <- ureal exactness' r
-            return n
-            -- TODO: Sign
-            -- return . RealNumber $ case n of
-            --     Integer i -> Integer s * fromIntegral i
-            --     Double d -> Double (fromIntegral s) * fromIntegral d
-            --     Fraction x y -> Fraction (fromIntegral s * x) y
+            return $ case sign' of
+                Positive -> n
+                Negative -> case n of
+                    Nan -> Nan
+                    PositiveInf -> NegativeInf
+                    NegativeInf -> PositiveInf
+                    Rational r' -> Rational $ case r' of
+                        Ratio x y -> Ratio (-x) y
+                        Double d -> Double (-d)
+                        Integer i -> Integer (-i)
 
 ureal :: Maybe Exactness -> Radix -> Parser Real
 ureal exactness' r = Rational <$> case r of
