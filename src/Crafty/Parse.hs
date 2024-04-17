@@ -291,9 +291,7 @@ negativeUrealI exactness' r = do
     void $ Parsec.char '-'
     ur <- ureal exactness' r
     void $ Parsec.char 'i'
-    -- TODO: Make negative
-    -- return $ Inexact (Integer 0) (multiply ur -1)
-    return $ Rectangular (Rational $ Integer 0) ur
+    return $ Rectangular (Rational $ Integer 0) (negateReal ur)
 
 realInfNanI :: Maybe Exactness -> Radix -> Parser Complex
 realInfNanI exactness' r = do

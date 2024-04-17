@@ -138,6 +138,18 @@ testComplexWithNegativeImaginaryPart :: Test
 testComplexWithNegativeImaginaryPart = TestLabel "Complex with negative imaginary part" . TestCase $
     "1-2i" `parsesTo` [Number (Rectangular (Rational $ Integer 1) (Rational $ Integer (-2)))]
 
+testComplexWithOnlyRealPart :: Test
+testComplexWithOnlyRealPart = TestLabel "Complex with only real part" . TestCase $
+    "5+0i" `parsesTo` [Number $ Rectangular (Rational $ Integer 5) (Rational $ Integer 0)]
+
+testComplexWithOnlyImaginaryPart :: Test
+testComplexWithOnlyImaginaryPart = TestLabel "Complex with only imaginary part" . TestCase $
+    "+10i" `parsesTo` [Number $ Rectangular (Rational $ Integer 0) (Rational $ Integer 10)]
+
+testComplexWithOnlyNegativeImaginaryPart :: Test
+testComplexWithOnlyNegativeImaginaryPart = TestLabel "Complex with only negative imaginary part" . TestCase $
+    "-10i" `parsesTo` [Number $ Rectangular (Rational $ Integer 0) (Rational $ Integer (-10))]
+
 testPolarComplex :: Test
 testPolarComplex = TestLabel "Polar complex" . TestCase $
     "1@2" `parsesTo` [Number $ Polar (Rational $ Integer 1) (Rational $ Integer 2)]
@@ -160,6 +172,9 @@ numberTests = TestLabel "Numbers" $ TestList [
     testParseComplex,
     testComplexWithNegativeRealPart,
     testComplexWithNegativeImaginaryPart,
+    testComplexWithOnlyRealPart,
+    testComplexWithOnlyImaginaryPart,
+    testComplexWithOnlyNegativeImaginaryPart,
     testPolarComplex
     ]
 
