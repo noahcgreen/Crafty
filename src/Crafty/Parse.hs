@@ -248,7 +248,6 @@ number = Parsec.try (number' Binary)
     <|> Parsec.try (number' Hexadecimal)
     <?> "number"
 
--- TODO: Figure out what to do with exactness/prefix/etc.
 number' :: Radix -> Parser Complex
 number' r = do
     prefix' <- prefix r
@@ -322,8 +321,7 @@ realMinusUrealI exactness' r = do
     void $ Parsec.char '-'
     imaginary <- ureal exactness' r
     void $ Parsec.char 'i'
-    -- TODO: Negative
-    return $ Rectangular real' imaginary
+    return $ Rectangular real' (negateReal imaginary)
 
 realPlusUrealI :: Maybe Exactness -> Radix -> Parser Complex
 realPlusUrealI exactness' r = do
@@ -361,6 +359,16 @@ complex exactness' r = iPlus
 
 data Real = Nan | PositiveInf | NegativeInf | Rational Rational deriving (Show, Eq)
 
+negateReal :: Real -> Real
+negateReal r = case r of
+    Nan -> Nan
+    PositiveInf -> NegativeInf
+    NegativeInf -> PositiveInf
+    Rational r' -> Rational $ case r' of
+        Ratio x y -> Ratio (-x) y
+        Double d -> Double (-d)
+        Integer i -> Integer (-i)
+
 real :: Maybe Exactness -> Radix -> Parser Real
 real exactness' r = Parsec.try infNan <|> Parsec.try signedReal
     where
@@ -369,14 +377,7 @@ real exactness' r = Parsec.try infNan <|> Parsec.try signedReal
             n <- ureal exactness' r
             return $ case sign' of
                 Positive -> n
-                Negative -> case n of
-                    Nan -> Nan
-                    PositiveInf -> NegativeInf
-                    NegativeInf -> PositiveInf
-                    Rational r' -> Rational $ case r' of
-                        Ratio x y -> Ratio (-x) y
-                        Double d -> Double (-d)
-                        Integer i -> Integer (-i)
+                Negative -> negateReal n
 
 ureal :: Maybe Exactness -> Radix -> Parser Real
 ureal exactness' r = Rational <$> case r of

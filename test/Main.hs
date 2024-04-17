@@ -86,6 +86,10 @@ testParseDouble :: Test
 testParseDouble = TestLabel "Parse double" . TestCase $
     "12.34" `parsesTo` [Number . Real . Rational $ Double 12.34]
 
+testParseNegativeDouble :: Test
+testParseNegativeDouble = TestLabel "Negative double" . TestCase $
+    "-12.34" `parsesTo` [Number . Real . Rational $ Double (-12.34)]
+
 testParseDoubleWithTrailingZeros :: Test
 testParseDoubleWithTrailingZeros = TestLabel "Double with trailing zeros" . TestCase $
     "12.30400" `parsesTo` [Number . Real . Rational $ Double 12.304]
@@ -110,27 +114,53 @@ testParseRatio :: Test
 testParseRatio = TestLabel "Parse ratio" . TestCase $
     "1/2" `parsesTo` [Number . Real . Rational $ Ratio 1 2]
 
+testParseNegativeRatio :: Test
+testParseNegativeRatio = TestLabel "Negative ratio" . TestCase $
+    "-1/2" `parsesTo` [Number . Real . Rational $ Ratio (-1) 2]
+
 testNormalizeRatio :: Test
 testNormalizeRatio = TestLabel "Normalize ratio" . TestCase $
     "2/4" `parsesTo` [Number . Real . Rational $ Ratio 1 2]
 
+testNormalizeNegativeRatio :: Test
+testNormalizeNegativeRatio = TestLabel "Normalize negative ratio" . TestCase $
+    "-2/4" `parsesTo` [Number . Real . Rational $ Ratio (-1) 2]
+
 testParseComplex :: Test
 testParseComplex = TestLabel "Parse complex" . TestCase $
     "1+2i" `parsesTo` [Number (Rectangular (Rational $ Integer 1) (Rational $ Integer 2))]
+
+testComplexWithNegativeRealPart :: Test
+testComplexWithNegativeRealPart = TestLabel "Complex with negative real part" . TestCase $
+    "-1+2i" `parsesTo` [Number (Rectangular (Rational $ Integer (-1)) (Rational $ Integer 2))]
+
+testComplexWithNegativeImaginaryPart :: Test
+testComplexWithNegativeImaginaryPart = TestLabel "Complex with negative imaginary part" . TestCase $
+    "1-2i" `parsesTo` [Number (Rectangular (Rational $ Integer 1) (Rational $ Integer (-2)))]
+
+testPolarComplex :: Test
+testPolarComplex = TestLabel "Polar complex" . TestCase $
+    "1@2" `parsesTo` [Number $ Polar (Rational $ Integer 1) (Rational $ Integer 2)]
 
 numberTests :: Test
 numberTests = TestLabel "Numbers" $ TestList [
     testParseInteger,
     testParseNegativeInteger,
     testParseDouble,
+    testParseNegativeDouble,
     testParseDoubleWithTrailingZeros,
     testParseExactDecimal,
     testNormalizeExactDecimalWithExponent,
     testTrailingDecimal,
     testParseExactTrailingDecimal,
     testParseRatio,
+    testParseNegativeRatio,
     testNormalizeRatio,
-    testParseComplex
+    testNormalizeNegativeRatio,
+    testParseComplex,
+    testComplexWithNegativeRealPart,
+    testComplexWithNegativeImaginaryPart,
+    testPolarComplex
     ]
 
 -- Characters
