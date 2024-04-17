@@ -304,14 +304,13 @@ realNegativeI :: Maybe Exactness -> Radix -> Parser Complex
 realNegativeI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.string "-i"
-    -- TODO: Negative
-    return $ Rectangular real' (Rational $ Integer 0)
+    return $ Rectangular real' (Rational $ Integer (-1))
 
 realPositiveI :: Maybe Exactness -> Radix -> Parser Complex
 realPositiveI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.string "+i"
-    return $ Rectangular real' (Rational $ Integer 0)
+    return $ Rectangular real' (Rational $ Integer 1)
 
 realMinusUrealI :: Maybe Exactness -> Radix -> Parser Complex
 realMinusUrealI exactness' r = do
@@ -408,7 +407,6 @@ uintegerDecimal10 = do
     e <- Parsec.option 0 suffix
     return $ Integer (u * 10 ^ e)
 
--- TODO: Reuse
 parseDigits :: Radix -> [Char] -> Integer
 parseDigits r = toInteger . foldl (\x d -> x * r' + digitToInt d) 0
     where
