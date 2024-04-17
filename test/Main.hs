@@ -26,158 +26,165 @@ parse' = assertRight . parse
 parsesTo :: HasCallStack => String -> [Datum] -> Assertion
 parsesTo source datum' = parse' source >>= (@?= datum')
 
+-- TODO: Use this
+testCase :: String -> Assertion -> Test
+testCase label = TestLabel label . TestCase
+
+testCases :: String -> [Test] -> Test
+testCases label = TestLabel label . TestList
+
 -- Tests
 
 -- TODO: Test failure cases
 
 -- Booleans
 
-testParseShortTrue :: Test
-testParseShortTrue = TestLabel "Short true" . TestCase $
+testShortTrue :: Test
+testShortTrue = testCase "Short true" $
     "#t" `parsesTo` [Boolean True]
 
-testParseShortFalse :: Test
-testParseShortFalse = TestLabel "Short false" . TestCase $
+testShortFalse :: Test
+testShortFalse = testCase "Short false" $
     "#f" `parsesTo` [Boolean False]
 
-testParseLongTrue :: Test
-testParseLongTrue = TestLabel "Long true" . TestCase $
+testLongTrue :: Test
+testLongTrue = testCase "Long true" $
     "#true" `parsesTo` [Boolean True]
 
-testParseLongFalse :: Test
-testParseLongFalse = TestLabel "Long false" . TestCase $
+testLongFalse :: Test
+testLongFalse = testCase "Long false" $
     "#false" `parsesTo` [Boolean False]
 
 booleanTests :: Test
-booleanTests = TestLabel "Booleans" $ TestList [
-    testParseShortTrue,
-    testParseShortFalse,
-    testParseLongTrue,
-    testParseLongFalse
+booleanTests = testCases "Booleans" [
+    testShortTrue,
+    testShortFalse,
+    testLongTrue,
+    testLongFalse
     ]
 
 -- Identifiers
 
-testParseIdentifier :: Test
-testParseIdentifier = TestLabel "Identifier" . TestCase $
+testIdentifier :: Test
+testIdentifier = testCase "Identifier" $
     "identifier" `parsesTo` [Symbol "identifier"]
 
-testParsePipedIdentifier :: Test
-testParsePipedIdentifier = TestLabel "Piped identifier" . TestCase $
+testPipedIdentifier :: Test
+testPipedIdentifier = testCase "Piped identifier" $
     "|an IDENTIFIER \\x0;|" `parsesTo` [Symbol "an IDENTIFIER \NUL"]
 
 identifierTests :: Test
-identifierTests = TestLabel "Identifiers" $ TestList [
-    testParseIdentifier,
-    testParsePipedIdentifier
+identifierTests = testCases "Identifiers" [
+    testIdentifier,
+    testPipedIdentifier
     ]
 
 -- Numbers
 
-testParseInteger :: Test
-testParseInteger = TestLabel "Parse integer" . TestCase $
+testInteger :: Test
+testInteger = testCase "Integer" $
     "10" `parsesTo` [Number . Real . Rational $ Integer 10]
 
-testParseNegativeInteger :: Test
-testParseNegativeInteger = TestLabel "Negative integer" . TestCase $
+testNegativeInteger :: Test
+testNegativeInteger = testCase "Negative integer" $
     "-10" `parsesTo` [Number . Real . Rational $ Integer (-10)]
 
-testParseDouble :: Test
-testParseDouble = TestLabel "Parse double" . TestCase $
+testDouble :: Test
+testDouble = testCase "Double" $
     "12.34" `parsesTo` [Number . Real . Rational $ Double 12.34]
 
-testParseNegativeDouble :: Test
-testParseNegativeDouble = TestLabel "Negative double" . TestCase $
+testNegativeDouble :: Test
+testNegativeDouble = testCase "Negative double" $
     "-12.34" `parsesTo` [Number . Real . Rational $ Double (-12.34)]
 
-testParseDoubleWithTrailingZeros :: Test
-testParseDoubleWithTrailingZeros = TestLabel "Double with trailing zeros" . TestCase $
+testDoubleWithTrailingZeros :: Test
+testDoubleWithTrailingZeros = testCase "Double with trailing zeros" $
     "12.30400" `parsesTo` [Number . Real . Rational $ Double 12.304]
 
-testParseExactDecimal :: Test
-testParseExactDecimal = TestLabel "Exact decimal" . TestCase $
+testExactDecimal :: Test
+testExactDecimal = testCase "Exact decimal" $
     "#e12.340" `parsesTo` [Number . Real . Rational $ Ratio 617 50]
 
 testNormalizeExactDecimalWithExponent :: Test
-testNormalizeExactDecimalWithExponent = TestLabel "Normalize exact decimal" . TestCase $
+testNormalizeExactDecimalWithExponent = testCase "Normalize exact decimal" $
     "#e1.23400e1" `parsesTo` [Number . Real . Rational $ Ratio 617 50]
 
 testTrailingDecimal :: Test
-testTrailingDecimal = TestLabel "Trailing decimal" . TestCase $
+testTrailingDecimal = testCase "Trailing decimal" $
     ".123400" `parsesTo` [Number . Real . Rational $ Double 0.1234]
 
-testParseExactTrailingDecimal :: Test
-testParseExactTrailingDecimal = TestLabel "Exact trailing decimal" . TestCase $
+testExactTrailingDecimal :: Test
+testExactTrailingDecimal = testCase "Exact trailing decimal" $
     "#e.12340" `parsesTo` [Number . Real . Rational $ Ratio 617 5000]
 
-testParseRatio :: Test
-testParseRatio = TestLabel "Parse ratio" . TestCase $
+testRatio :: Test
+testRatio = testCase "Parse ratio" $
     "1/2" `parsesTo` [Number . Real . Rational $ Ratio 1 2]
 
-testParseNegativeRatio :: Test
-testParseNegativeRatio = TestLabel "Negative ratio" . TestCase $
+testNegativeRatio :: Test
+testNegativeRatio = testCase "Negative ratio" $
     "-1/2" `parsesTo` [Number . Real . Rational $ Ratio (-1) 2]
 
 testNormalizeRatio :: Test
-testNormalizeRatio = TestLabel "Normalize ratio" . TestCase $
+testNormalizeRatio = testCase "Normalize ratio" $
     "2/4" `parsesTo` [Number . Real . Rational $ Ratio 1 2]
 
 testNormalizeNegativeRatio :: Test
-testNormalizeNegativeRatio = TestLabel "Normalize negative ratio" . TestCase $
+testNormalizeNegativeRatio = testCase "Normalize negative ratio" $
     "-2/4" `parsesTo` [Number . Real . Rational $ Ratio (-1) 2]
 
-testParseComplex :: Test
-testParseComplex = TestLabel "Parse complex" . TestCase $
+testComplex :: Test
+testComplex = testCase "Parse complex" $
     "1+2i" `parsesTo` [Number (Rectangular (Rational $ Integer 1) (Rational $ Integer 2))]
 
 testComplexWithNegativeRealPart :: Test
-testComplexWithNegativeRealPart = TestLabel "Complex with negative real part" . TestCase $
+testComplexWithNegativeRealPart = testCase "Complex with negative real part" $
     "-1+2i" `parsesTo` [Number (Rectangular (Rational $ Integer (-1)) (Rational $ Integer 2))]
 
 testComplexWithNegativeImaginaryPart :: Test
-testComplexWithNegativeImaginaryPart = TestLabel "Complex with negative imaginary part" . TestCase $
+testComplexWithNegativeImaginaryPart = testCase "Complex with negative imaginary part" $
     "1-2i" `parsesTo` [Number (Rectangular (Rational $ Integer 1) (Rational $ Integer (-2)))]
 
 testComplexWithOnlyRealPart :: Test
-testComplexWithOnlyRealPart = TestLabel "Complex with only real part" . TestCase $
+testComplexWithOnlyRealPart = testCase "Complex with only real part" $
     "5+0i" `parsesTo` [Number $ Rectangular (Rational $ Integer 5) (Rational $ Integer 0)]
 
 testComplexWithOnlyImaginaryPart :: Test
-testComplexWithOnlyImaginaryPart = TestLabel "Complex with only imaginary part" . TestCase $
+testComplexWithOnlyImaginaryPart = testCase "Complex with only imaginary part" $
     "+10i" `parsesTo` [Number $ Rectangular (Rational $ Integer 0) (Rational $ Integer 10)]
 
 testComplexWithOnlyNegativeImaginaryPart :: Test
-testComplexWithOnlyNegativeImaginaryPart = TestLabel "Complex with only negative imaginary part" . TestCase $
+testComplexWithOnlyNegativeImaginaryPart = testCase "Complex with only negative imaginary part" $
     "-10i" `parsesTo` [Number $ Rectangular (Rational $ Integer 0) (Rational $ Integer (-10))]
 
 testRealPlusI :: Test
-testRealPlusI = TestLabel "Complex of real plus i" . TestCase $
+testRealPlusI = testCase "Complex of real plus i" $
     "10+i" `parsesTo` [Number $ Rectangular (Rational $ Integer 10) (Rational $ Integer 1)]
 
 testRealMinusI :: Test
-testRealMinusI = TestLabel "Complex of real minus i" . TestCase $
+testRealMinusI = testCase "Complex of real minus i" $
     "10-i" `parsesTo` [Number $ Rectangular (Rational $ Integer 10) (Rational $ Integer (-1))]
 
 testPolarComplex :: Test
-testPolarComplex = TestLabel "Polar complex" . TestCase $
+testPolarComplex = testCase "Polar complex" $
     "1@2" `parsesTo` [Number $ Polar (Rational $ Integer 1) (Rational $ Integer 2)]
 
 numberTests :: Test
-numberTests = TestLabel "Numbers" $ TestList [
-    testParseInteger,
-    testParseNegativeInteger,
-    testParseDouble,
-    testParseNegativeDouble,
-    testParseDoubleWithTrailingZeros,
-    testParseExactDecimal,
+numberTests = testCases "Numbers" [
+    testInteger,
+    testNegativeInteger,
+    testDouble,
+    testNegativeDouble,
+    testDoubleWithTrailingZeros,
+    testExactDecimal,
     testNormalizeExactDecimalWithExponent,
     testTrailingDecimal,
-    testParseExactTrailingDecimal,
-    testParseRatio,
-    testParseNegativeRatio,
+    testExactTrailingDecimal,
+    testRatio,
+    testNegativeRatio,
     testNormalizeRatio,
     testNormalizeNegativeRatio,
-    testParseComplex,
+    testComplex,
     testComplexWithNegativeRealPart,
     testComplexWithNegativeImaginaryPart,
     testComplexWithOnlyRealPart,
@@ -191,7 +198,7 @@ numberTests = TestLabel "Numbers" $ TestList [
 -- Characters
 
 testNamedCharacters :: Test
-testNamedCharacters = TestLabel "Named characters" . TestList $ map TestCase [
+testNamedCharacters = testCases "Named characters" $ map TestCase [
     "#\\alarm"     `parsesTo` [Character '\7'],
     "#\\backspace" `parsesTo` [Character '\8'],
     "#\\delete"    `parsesTo` [Character '\127'],
@@ -204,19 +211,19 @@ testNamedCharacters = TestLabel "Named characters" . TestList $ map TestCase [
     ]
 
 testHexCharacters :: Test
-testHexCharacters = TestLabel "Hex characters" . TestList $ map TestCase [
+testHexCharacters = testCases "Hex characters" $ map TestCase [
     "#\\x03BB" `parsesTo` [Character 'λ'],
     "#\\x03bb" `parsesTo` [Character 'λ']
     ]
 
 testCharacterLiterals :: Test
-testCharacterLiterals = TestLabel "Character literals" . TestList $ map TestCase [
+testCharacterLiterals = testCases "Character literals" $ map TestCase [
     "#\\x" `parsesTo` [Character 'x'],
     "#\\1" `parsesTo` [Character '1']
     ]
 
 characterTests :: Test
-characterTests = TestLabel "Numbers" $ TestList [
+characterTests = testCases "Numbers" [
     testNamedCharacters,
     testHexCharacters,
     testCharacterLiterals
@@ -225,11 +232,11 @@ characterTests = TestLabel "Numbers" $ TestList [
 -- Strings
 
 testEmptyString :: Test
-testEmptyString = TestLabel "Empty string" . TestCase $
+testEmptyString = testCase "Empty string" $
     "\"\"" `parsesTo` [String ""]
 
 testEscapedStringCharacters :: Test
-testEscapedStringCharacters = TestLabel "Escaped string characters" . TestList $ map TestCase [
+testEscapedStringCharacters = testCases "Escaped string characters" $ map TestCase [
     "\"\\a\""   `parsesTo` [String "\7"],
     "\"\\b\""   `parsesTo` [String "\8"],
     "\"\\t\""   `parsesTo` [String "\t"],
@@ -242,11 +249,11 @@ testEscapedStringCharacters = TestLabel "Escaped string characters" . TestList $
     ]
 
 testMultiCharacterString ::Test
-testMultiCharacterString = TestLabel "Multi-character string" . TestCase $
+testMultiCharacterString = testCase "Multi-character string" $
     "\"abc123 \\|\"" `parsesTo` [String "abc123 |"]
 
 stringTests :: Test
-stringTests = TestLabel "Strings" $ TestList [
+stringTests = testCases "Strings" [
     testEmptyString,
     testEscapedStringCharacters,
     testMultiCharacterString]
@@ -254,11 +261,11 @@ stringTests = TestLabel "Strings" $ TestList [
 -- Vectors
 
 testEmptyVector :: Test
-testEmptyVector = TestLabel "Empty vector" . TestCase $
+testEmptyVector = testCase "Empty vector" $
     "#()" `parsesTo` [Vector []]
 
 testHeterogeneousVector :: Test
-testHeterogeneousVector = TestLabel "Heterogeneous vector" . TestCase $
+testHeterogeneousVector = testCase "Heterogeneous vector" $
     "#(0 (2 2 2 2) \"Anna\")" `parsesTo` [Vector [
         zero,
         List [two, two, two, two],
@@ -269,11 +276,11 @@ testHeterogeneousVector = TestLabel "Heterogeneous vector" . TestCase $
         two = Number . Real . Rational $ Integer 2
 
 testSymbolVector :: Test
-testSymbolVector = TestLabel "Character vector" . TestCase $
+testSymbolVector = testCase "Character vector" $
     "#(a b c)" `parsesTo` [Vector [Symbol "a", Symbol "b", Symbol "c"]]
 
 testIntegerVector :: Test
-testIntegerVector = TestLabel "Integer vector" . TestCase $
+testIntegerVector = testCase "Integer vector" $
     "#(1 1 2 3 5 8 13 21)" `parsesTo` [Vector [
         integer 1,
         integer 1,
@@ -288,7 +295,7 @@ testIntegerVector = TestLabel "Integer vector" . TestCase $
         integer = Number . Real . Rational . Integer
 
 vectorTests :: Test
-vectorTests = TestLabel "Vectors" $ TestList [
+vectorTests = testCases "Vectors" [
     testEmptyVector,
     testHeterogeneousVector,
     testSymbolVector,
@@ -298,15 +305,15 @@ vectorTests = TestLabel "Vectors" $ TestList [
 -- Bytevectors
 
 testEmptyBytevector :: Test
-testEmptyBytevector = TestLabel "Empty bytevector" . TestCase $
+testEmptyBytevector = testCase "Empty bytevector" $
     "#u8()" `parsesTo` [ByteVector []]
 
 testBasicBytevector :: Test
-testBasicBytevector = TestLabel "Basic bytevector" . TestCase $
+testBasicBytevector = testCase "Basic bytevector" $
     "#u8(0 10 5)" `parsesTo` [ByteVector [0, 10, 5]]
 
 bytevectorTests :: Test
-bytevectorTests = TestLabel "Bytevectors" $ TestList [
+bytevectorTests = testCases "Bytevectors" [
     testEmptyBytevector,
     testBasicBytevector
     ]
@@ -314,43 +321,43 @@ bytevectorTests = TestLabel "Bytevectors" $ TestList [
 -- Whitespace and comments
 
 testEmptySource :: Test
-testEmptySource = TestLabel "Empty source" . TestCase $
+testEmptySource = testCase "Empty source" $
     "" `parsesTo` []
 
 testOnlyWhitespace :: Test
-testOnlyWhitespace = TestLabel "Only whitespace" . TestCase $
+testOnlyWhitespace = testCase "Only whitespace" $
     "\n\r \t" `parsesTo` []
 
 testLineComment :: Test
-testLineComment = TestLabel "Line comment" . TestCase $
+testLineComment = testCase "Line comment" $
     "; Some text" `parsesTo` []
 
 testLineCommentWithData :: Test
-testLineCommentWithData = TestLabel "Line comment with data" . TestCase $
+testLineCommentWithData = testCase "Line comment with data" $
     "x ; Comment 1\ny;Comment 2\nz" `parsesTo` [Symbol "x", Symbol "y", Symbol "z"]
 
 testBlockComment :: Test
-testBlockComment = TestLabel "Block comment" . TestCase $
+testBlockComment = testCase "Block comment" $
     "#| Comment |#" `parsesTo` []
 
 testBlockCommentWithData :: Test
-testBlockCommentWithData = TestLabel "Block comment with data" . TestCase $
+testBlockCommentWithData = testCase "Block comment with data" $
     "x #| Comment\n1 |# y #| Comment 2 |# z" `parsesTo` [Symbol "x", Symbol "y", Symbol "z"]
 
 testNestedBlockComments :: Test
-testNestedBlockComments = TestLabel "Nested block comments" . TestCase $
+testNestedBlockComments = testCase "Nested block comments" $
     "#| Outer #| Inner |# Outer |#" `parsesTo` []
 
 testDatumComment :: Test
-testDatumComment = TestLabel "Datum comment" . TestCase $
+testDatumComment = testCase "Datum comment" $
     "#; x" `parsesTo` []
 
 testDatumCommentWithData :: Test
-testDatumCommentWithData = TestLabel "Datum comment with data" . TestCase $
+testDatumCommentWithData = testCase "Datum comment with data" $
     "x #;(a b c) y #; 1 z" `parsesTo` [Symbol "x", Symbol "y", Symbol "z"]
 
 whitespaceTests :: Test
-whitespaceTests = TestLabel "Whitespace" $ TestList [
+whitespaceTests = testCases "Whitespace" [
     testEmptySource,
     testOnlyWhitespace,
     testLineComment,
@@ -365,23 +372,23 @@ whitespaceTests = TestLabel "Whitespace" $ TestList [
 -- Directives
 
 testFoldCase :: Test
-testFoldCase = TestLabel "Fold case" . TestCase $
+testFoldCase = testCase "Fold case" $
     "#!fold-case aBc XyZ ß" `parsesTo` [Symbol "abc", Symbol "xyz", Symbol "ss"]
 
 testNoFoldCase :: Test
-testNoFoldCase = TestLabel "No fold case" . TestCase $
+testNoFoldCase = testCase "No fold case" $
     "#!fold-case aBc #!no-fold-case XyZ ß" `parsesTo` [Symbol "abc", Symbol "XyZ", Symbol "ß"]
 
 testResetToFoldCase :: Test
-testResetToFoldCase = TestLabel "Reset to fold case" . TestCase $
+testResetToFoldCase = testCase "Reset to fold case" $
     "#!fold-case aBc #!no-fold-case DeF #!fold-case gHi" `parsesTo` [Symbol "abc", Symbol "DeF", Symbol "ghi"]
 
 testResetToNoFoldCase :: Test
-testResetToNoFoldCase = TestLabel "Reset to no fold case" . TestCase $
+testResetToNoFoldCase = testCase "Reset to no fold case" $
     "#!no-fold-case aBc #!fold-case DeF #!no-fold-case gHi" `parsesTo` [Symbol "aBc", Symbol "def", Symbol "gHi"]
 
 directiveTests :: Test
-directiveTests = TestLabel "Directives" $ TestList [
+directiveTests = testCases "Directives" [
     testFoldCase,
     testNoFoldCase,
     testResetToFoldCase,
