@@ -405,10 +405,21 @@ testNestedQuote :: Test
 testNestedQuote = testCase "Nested quote" $
     "''1" `parsesTo` [Quoted . Quoted . Number . Real . Rational $ Integer 1]
 
+testQuasiquote :: Test
+testQuasiquote = testCase "Quasiquote" $
+    "`(foo ,bar ,@biz 'baz)" `parsesTo` [Quasiquoted $ List [
+        Symbol "foo",
+        Unquoted $ Symbol "bar",
+        UnquotedSplicing $ Symbol "biz",
+        Quoted $ Symbol "baz"
+        ]
+    ]
+
 quotationTests :: Test
 quotationTests = testCases "Quotations" [
         testQuote,
-        testNestedQuote
+        testNestedQuote,
+        testQuasiquote
     ]
 
 -- All tests
