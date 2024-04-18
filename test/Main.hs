@@ -395,6 +395,22 @@ directiveTests = testCases "Directives" [
     testResetToNoFoldCase
     ]
 
+-- Quotations
+
+testQuote :: Test
+testQuote = testCase "Quote" $
+    "'symbol" `parsesTo` [Quoted $ Symbol "symbol"]
+
+testNestedQuote :: Test
+testNestedQuote = testCase "Nested quote" $
+    "''1" `parsesTo` [Quoted . Quoted . Number . Real . Rational $ Integer 1]
+
+quotationTests :: Test
+quotationTests = testCases "Quotations" [
+        testQuote,
+        testNestedQuote
+    ]
+
 -- All tests
 
 allTests :: Test
@@ -407,7 +423,8 @@ allTests = TestList [
     vectorTests,
     bytevectorTests,
     whitespaceTests,
-    directiveTests
+    directiveTests,
+    quotationTests
     ]
 
 main :: IO ()

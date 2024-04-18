@@ -597,6 +597,8 @@ data Datum
     | Vector [Datum]
     | Labeled Integer Datum
     | Label Integer
+    -- TODO: Quasiquotation
+    | Quoted Datum
     deriving (Show, Eq)
 
 datum :: Parser Datum
@@ -671,7 +673,11 @@ bytevector = do
 
 -- TODO: Abbrev
 compoundDatum :: Parser Datum
-compoundDatum = List <$> Parsec.try list <|> Vector <$> Parsec.try vector
+compoundDatum = List <$> Parsec.try list <|> Vector <$> Parsec.try vector <|> Parsec.try quotation
+
+-- TODO: Quasiquotation
+quotation :: Parser Datum
+quotation = Quoted <$> (quote *> datum)
 
 symbol :: Parser String
 symbol = identifier
