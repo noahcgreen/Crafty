@@ -440,15 +440,6 @@ parseDigits r = toInteger . foldl (\x d -> x * r' + digitToInt d) 0
             Decimal -> 10
             Hexadecimal -> 16
 
-readMantissa :: String -> Double
-readMantissa s = foldl (\x (i, d) -> x + y i d) 0 (zip integers s)
-    where
-        y i d = let
-            d' = fromIntegral (digitToInt d)
-            e = 10 ^^ (-i)
-            in d' * e
-        integers = [1..] :: [Integer]
-
 fractionalDecimal10 :: Maybe Exactness -> Parser Rational
 fractionalDecimal10 exactness' = do
     void dot
@@ -462,16 +453,6 @@ fractionalDecimal10 exactness' = do
         Just Exact | p >= 0 -> Integer $ allDigits * 10 ^ p
         Just Exact | p < 0 -> makeRatio allDigits (10 ^ (-p))
         _ -> Double $ fromInteger allDigits * 10 ^^ p
-
-numberOfDigits :: Integer -> Integer
-numberOfDigits x = let x' = fromInteger x :: Double in 1 + floor (logBase 10 x')
-
-removeTrailingZeros :: String -> String
-removeTrailingZeros s = let (result, _) = foldr (\c (s', z) -> combine s' c z) ([], False) s in result
-    where
-        combine s' c z = case (c, z) of
-            ('0', False) -> (s', False)
-            _ -> (c:s', True)
 
 fullDecimal10 :: Maybe Exactness -> Parser Rational
 fullDecimal10 exactness' = do
@@ -695,7 +676,6 @@ bytevector = do
     rightParenthesis
     return bytes
 
--- TODO: Abbrev
 compoundDatum :: Parser Datum
 compoundDatum = List <$> Parsec.try list
     <|> Vector <$> Parsec.try vector
