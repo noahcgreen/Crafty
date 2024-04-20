@@ -1,4 +1,11 @@
-module Crafty.Parse where
+module Crafty.Parse (
+    read,
+    readAll,
+    Datum (..),
+    Complex (..),
+    Rational (..),
+    Real (..)
+    ) where
 
 import Control.Monad (void)
 import Data.Bits (toIntegralSized)
@@ -8,7 +15,7 @@ import Data.Functor (($>))
 import Data.Word (Word8)
 import Text.Parsec ((<|>), (<?>))
 import qualified Text.Parsec as Parsec
-import Prelude hiding (Rational, Real)
+import Prelude hiding (read, Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
 
 -- read
@@ -17,10 +24,27 @@ data FoldCaseState = FoldCase | NoFoldCase deriving (Show)
 
 type Parser = Parsec.Parsec String FoldCaseState
 
-read :: String -> String -> Either SomeException [Datum]
-read file source = case Parsec.runParser (data' <* Parsec.eof) NoFoldCase file source of
+wrapParsecError :: Either Parsec.ParseError a -> Either SomeException a
+wrapParsecError x = case x of
     Left e -> Left $ toException e
-    Right result -> Right result
+    Right r -> Right r
+
+read :: String -> String -> Either SomeException (Maybe Datum, String)
+read file source = wrapParsecError $ Parsec.runParser read' NoFoldCase file source
+    where
+        read' = intertokenSpace *> do
+            d <- Just <$> datum <|> Parsec.eof $> Nothing
+            rest <- Parsec.getInput
+            return (d, rest)
+
+readAll :: String -> String -> Either SomeException [Datum]
+readAll file source = do
+    (md, rest) <- read file source
+    case md of
+        Nothing -> return []
+        Just d -> do
+            d' <- readAll file rest
+            return $ d:d'
 
 leftParenthesis :: Parser ()
 leftParenthesis = void $ Parsec.char '('
