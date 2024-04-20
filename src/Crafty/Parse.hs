@@ -18,6 +18,55 @@ import qualified Text.Parsec as Parsec
 import Prelude hiding (read, Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
 
+-- AST types
+
+data Rational = Ratio Integer Integer | Double Double | Integer Integer deriving (Show, Eq)
+
+data Real = Nan | PositiveInf | NegativeInf | Rational Rational deriving (Show, Eq)
+
+data Complex = Rectangular Real Real | Polar Real Real | Real Real deriving (Show, Eq)
+
+data Datum
+    = Boolean Bool
+    | Number Complex
+    | Character Char
+    | String String
+    | Symbol String
+    -- TODO: Use appropriate collection types (e.g. fixed-size containers for vector/bytevector)
+    | ByteVector [Word8]
+    | List [Datum]
+    | Vector [Datum]
+    | Labeled Integer Datum
+    | Label Integer
+    | Quoted Datum
+    | Quasiquoted Datum
+    | Unquoted Datum
+    | UnquotedSplicing Datum
+    deriving (Show, Eq)
+
+-- Numeric utilities
+
+-- Construct a ratio in simplest terms
+makeRatio :: Integer -> Integer -> Rational
+makeRatio x y = let d = gcd x y in Ratio (x `div` d) (y `div` d)
+
+parseDigits :: Radix -> [Char] -> Integer
+parseDigits r = toInteger . foldl (\x d -> x * r' + digitToInt d) 0
+    where
+        r' = case r of
+            Binary -> 2
+            Octal -> 8
+            Decimal -> 10
+            Hexadecimal -> 16
+
+-- Misc types
+
+data Radix = Binary | Octal | Decimal | Hexadecimal deriving (Show)
+
+data Exactness = Exact | Inexact deriving (Show)
+
+data Sign = Positive | Negative deriving (Show)
+
 -- read
 
 data FoldCaseState = FoldCase | NoFoldCase deriving (Show)
@@ -46,26 +95,13 @@ readAll file source = do
             d' <- readAll file rest
             return $ d:d'
 
+-- Trivial tokens
+
 leftParenthesis :: Parser ()
 leftParenthesis = void $ Parsec.char '('
 
 rightParenthesis :: Parser ()
 rightParenthesis = void $ Parsec.char ')'
-
-boolean :: Parser Bool
-boolean = true <|> false <?> "boolean"
-
-true :: Parser Bool
-true = (Parsec.string' "#true" <|> Parsec.string' "#t") $> True
-
-false :: Parser Bool
-false = (Parsec.string' "#false" <|> Parsec.string' "#f") $> False
-
-vectorStart :: Parser ()
-vectorStart = void $ Parsec.string' "#("
-
-byteVectorStart :: Parser ()
-byteVectorStart = void $ Parsec.string' "#u8("
 
 quote :: Parser Char
 quote = Parsec.char '\''
@@ -87,6 +123,56 @@ commaAt = do
     c <- comma
     a <- at
     return [c, a]
+
+-- Boolean
+
+boolean :: Parser Bool
+boolean = true <|> false <?> "boolean"
+
+true :: Parser Bool
+true = (Parsec.string' "#true" <|> Parsec.string' "#t") $> True
+
+false :: Parser Bool
+false = (Parsec.string' "#false" <|> Parsec.string' "#f") $> False
+
+-- Vector
+
+vectorStart :: Parser ()
+vectorStart = void $ Parsec.string' "#("
+
+vector :: Parser [Datum]
+vector = vectorStart *> data' <* rightParenthesis
+
+-- Bytevector
+
+byteVectorStart :: Parser ()
+byteVectorStart = void $ Parsec.string' "#u8("
+
+-- uinteger of any radix
+uinteger' :: Parser Integer
+uinteger' = Parsec.try (uinteger Binary)
+    <|> Parsec.try (uinteger Octal)
+    <|> Parsec.try (uinteger Decimal)
+    <|> Parsec.try (uinteger Hexadecimal)
+
+byte :: Parser Word8
+byte = do
+    -- TODO: Support any exact integer, e.g. ratios
+    x <- number
+    case x of
+        (Real (Rational (Integer i))) -> case toIntegralSized i of
+            Just b -> return b
+            Nothing -> fail $ "Bytevector element is not a byte: " ++ show x
+        _ -> fail $ "Bytevector element is not a byte: " ++ show x
+
+bytevector :: Parser [Word8]
+bytevector = do
+    byteVectorStart
+    bytes <- many byte
+    rightParenthesis
+    return bytes
+
+-- Character
 
 character :: Parser Char
 character = Parsec.try namedCharacter <|> Parsec.try hexCharacter <|> escapedCharacter
@@ -115,6 +201,8 @@ hexCharacter = do
 
 escapedCharacter :: Parser Char
 escapedCharacter = Parsec.string' "#\\" *> Parsec.anyChar
+
+-- String
 
 string :: Parser String
 string = do
@@ -169,6 +257,8 @@ escapedNewline = Parsec.char '\\'
     *> lineEnding
     <* Parsec.many intralineWhitespace
 
+-- Whitespace
+
 intralineWhitespace :: Parser Char
 intralineWhitespace = Parsec.oneOf " \t"
 
@@ -177,6 +267,52 @@ lineEnding = pure <$> Parsec.char '\n'
     <|> Parsec.string' "\r\n"
     <|> pure <$> Parsec.char '\r'
     <?> "line ending"
+
+whitespace :: Parser ()
+whitespace = void intralineWhitespace <|> void lineEnding <?> "whitespace"
+
+comment :: Parser ()
+comment = Parsec.try lineComment
+    <|> Parsec.try nestedComment
+    <|> Parsec.try datumComment
+    <?> "comment"
+
+lineComment :: Parser ()
+lineComment = void $ do
+    void $ Parsec.char ';'
+    Parsec.manyTill Parsec.anyChar (Parsec.try $ void lineEnding <|> Parsec.eof)
+
+blockCommentStart :: Parser ()
+blockCommentStart = void $ Parsec.string "#|"
+
+blockCommentEnd :: Parser ()
+blockCommentEnd = void $ Parsec.string "|#"
+
+nestedComment :: Parser ()
+nestedComment = void $ do
+    blockCommentStart
+    commentText
+    void $ Parsec.many commentCont
+    blockCommentEnd
+
+commentText :: Parser ()
+commentText = void $ Parsec.notFollowedBy (blockCommentStart <|> blockCommentEnd) *> Parsec.anyChar
+
+commentCont :: Parser ()
+commentCont = Parsec.try nestedComment <|> Parsec.try commentText
+
+datumComment :: Parser ()
+datumComment = void $ Parsec.string "#;" *> intertokenSpace *> datum
+
+intertokenSpace :: Parser ()
+intertokenSpace = void $ Parsec.many atmosphere
+
+atmosphere :: Parser ()
+atmosphere = Parsec.try whitespace
+    <|> Parsec.try comment
+    <|> Parsec.try directive
+
+-- Identifier
 
 identifier :: Parser String
 identifier = do
@@ -212,7 +348,6 @@ specialInitial :: Parser Char
 specialInitial = Parsec.oneOf "!$%&*/:<=>?^_~"
 
 subsequent :: Parser Char
--- subsequent = (pure <$> initial) <|> (pure <$> digit) <|> (pure <$> specialSubsequent)
 subsequent = initial <|> digit <|> specialSubsequent
 
 digit :: Parser Char
@@ -275,12 +410,9 @@ number = Parsec.try (number' Binary)
 number' :: Radix -> Parser Complex
 number' r = do
     prefix' <- prefix r
-    n <- complex prefix' r
-    return n
+    complex prefix' r
 
 -- Complex
-
-data Complex = Rectangular Real Real | Polar Real Real | Real Real deriving (Show, Eq)
 
 iPlus :: Parser Complex
 iPlus = Parsec.string' "+i" $> Rectangular (Rational $ Integer 0) (Rational . Integer $ 1)
@@ -378,8 +510,6 @@ complex exactness' r = iPlus
 
 -- Real
 
-data Real = Nan | PositiveInf | NegativeInf | Rational Rational deriving (Show, Eq)
-
 negateReal :: Real -> Real
 negateReal r = case r of
     Nan -> Nan
@@ -407,12 +537,6 @@ ureal exactness' r = Rational <$> case r of
 
 -- Rational
 
-data Rational = Ratio Integer Integer | Double Double | Integer Integer deriving (Show, Eq)
-
--- Construct a ratio in simplest terms
-makeRatio :: Integer -> Integer -> Rational
-makeRatio x y = let d = gcd x y in Ratio (x `div` d) (y `div` d)
-
 ratio :: Radix -> Parser Rational
 ratio r = do
     x <- uinteger r
@@ -430,15 +554,6 @@ uintegerDecimal10 = do
     u <- uinteger Decimal
     e <- Parsec.option 0 suffix
     return $ Integer (u * 10 ^ e)
-
-parseDigits :: Radix -> [Char] -> Integer
-parseDigits r = toInteger . foldl (\x d -> x * r' + digitToInt d) 0
-    where
-        r' = case r of
-            Binary -> 2
-            Octal -> 8
-            Decimal -> 10
-            Hexadecimal -> 16
 
 fractionalDecimal10 :: Maybe Exactness -> Parser Rational
 fractionalDecimal10 exactness' = do
@@ -500,23 +615,17 @@ suffix = do
 exponentMarker :: Parser ()
 exponentMarker = void $ Parsec.char 'e'
 
-data Sign = Positive | Negative deriving (Show)
-
 sign :: Parser Sign
 sign = positive <|> negative
     where
         positive = Parsec.char '+' $> Positive
         negative = Parsec.char '-' $> Negative
 
-data Exactness = Exact | Inexact deriving (Show)
-
 exactness :: Parser Exactness
 exactness = Parsec.try exact <|> Parsec.try inexact
     where
         exact = Parsec.string' "#e" $> Exact
         inexact = Parsec.string' "#i" $> Inexact
-
-data Radix = Binary | Octal | Decimal | Hexadecimal deriving (Show)
 
 radix :: Radix -> Parser ()
 radix r = case r of
@@ -532,51 +641,7 @@ digit' r = case r of
     Decimal -> digit
     Hexadecimal -> Parsec.hexDigit
 
--- Whitespace
-
-whitespace :: Parser ()
-whitespace = void intralineWhitespace <|> void lineEnding <?> "whitespace"
-
-comment :: Parser ()
-comment = Parsec.try lineComment
-    <|> Parsec.try nestedComment
-    <|> Parsec.try datumComment
-    <?> "comment"
-
-lineComment :: Parser ()
-lineComment = void $ do
-    void $ Parsec.char ';'
-    Parsec.manyTill Parsec.anyChar (Parsec.try $ void lineEnding <|> Parsec.eof)
-
-blockCommentStart :: Parser ()
-blockCommentStart = void $ Parsec.string "#|"
-
-blockCommentEnd :: Parser ()
-blockCommentEnd = void $ Parsec.string "|#"
-
-nestedComment :: Parser ()
-nestedComment = void $ do
-    blockCommentStart
-    commentText
-    void $ Parsec.many commentCont
-    blockCommentEnd
-
-commentText :: Parser ()
-commentText = void $ Parsec.notFollowedBy (blockCommentStart <|> blockCommentEnd) *> Parsec.anyChar
-
-commentCont :: Parser ()
-commentCont = Parsec.try nestedComment <|> Parsec.try commentText
-
-datumComment :: Parser ()
-datumComment = void $ Parsec.string "#;" *> intertokenSpace *> datum
-
-intertokenSpace :: Parser ()
-intertokenSpace = void $ Parsec.many atmosphere
-
-atmosphere :: Parser ()
-atmosphere = Parsec.try whitespace
-    <|> Parsec.try comment
-    <|> Parsec.try directive
+-- Directive
 
 directive :: Parser ()
 directive = foldCaseDirective <|> noFoldCaseDirective <?> "directive"
@@ -587,26 +652,7 @@ foldCaseDirective = Parsec.string' "#!fold-case" *> Parsec.putState FoldCase
 noFoldCaseDirective :: Parser ()
 noFoldCaseDirective = Parsec.string' "#!no-fold-case" *> Parsec.putState NoFoldCase
 
--- Parsing
--- Corresponds to Section 7.1.2 (External Representations) in the R7RS spec
-
-data Datum
-    = Boolean Bool
-    | Number Complex
-    | Character Char
-    | String String
-    | Symbol String
-    -- TODO: Use appropriate collection types (e.g. fixed-size containers for vector/bytevector)
-    | ByteVector [Word8]
-    | List [Datum]
-    | Vector [Datum]
-    | Labeled Integer Datum
-    | Label Integer
-    | Quoted Datum
-    | Quasiquoted Datum
-    | Unquoted Datum
-    | UnquotedSplicing Datum
-    deriving (Show, Eq)
+-- Datum
 
 datum :: Parser Datum
 datum = Parsec.try simpleDatum
@@ -635,9 +681,6 @@ labeled = do
     void $ Parsec.char '='
     Labeled label' <$> datum
 
-vector :: Parser [Datum]
-vector = vectorStart *> data' <* rightParenthesis
-
 list :: Parser [Datum]
 list = Parsec.try properList <|> Parsec.try improperList
     where
@@ -649,32 +692,6 @@ list = Parsec.try properList <|> Parsec.try improperList
             tail' <- datum
             void rightParenthesis
             return $ initial' ++ [tail']
-
--- Bytevector
-
--- uinteger of any radix
-uinteger' :: Parser Integer
-uinteger' = Parsec.try (uinteger Binary)
-    <|> Parsec.try (uinteger Octal)
-    <|> Parsec.try (uinteger Decimal)
-    <|> Parsec.try (uinteger Hexadecimal)
-
-byte :: Parser Word8
-byte = do
-    -- TODO: Support any exact integer, e.g. ratios
-    x <- number
-    case x of
-        (Real (Rational (Integer i))) -> case toIntegralSized i of
-            Just b -> return b
-            Nothing -> fail $ "Bytevector element is not a byte: " ++ show x
-        _ -> fail $ "Bytevector element is not a byte: " ++ show x
-
-bytevector :: Parser [Word8]
-bytevector = do
-    byteVectorStart
-    bytes <- many byte
-    rightParenthesis
-    return bytes
 
 compoundDatum :: Parser Datum
 compoundDatum = List <$> Parsec.try list
