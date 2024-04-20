@@ -45,7 +45,7 @@ executable crafty-scheme
 test-suite crafty-scheme-test
     import:           warnings
     default-language: GHC2021
-    -- other-modules:
+    other-modules: Test.Crafty.Parse
     -- other-extensions:
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
