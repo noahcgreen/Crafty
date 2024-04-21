@@ -5,46 +5,14 @@ import Data.Word (Word8)
 import GHC.Real (Ratio((:%)))
 import qualified GHC.Real
 
+-- Rational
+
 data Rational
     -- TODO: Replace with Data.Rational
     = Ratio Integer Integer
     | Double Double
     | Integer Integer
     deriving (Show)
-
-data Real
-    = Nan
-    | PositiveInf
-    | NegativeInf
-    | Rational Rational
-    deriving (Show, Eq)
-
--- TODO: Hide constructors?
-data Complex
-    = Rectangular Real Real
-    | Polar Real Real
-    | Real Real
-    deriving (Show, Eq)
-
-data Datum
-    = Boolean Bool
-    | Number Complex
-    | Character Char
-    | String String
-    | Symbol String
-    -- TODO: Use appropriate collection types (e.g. fixed-size containers for vector/bytevector)
-    | ByteVector [Word8]
-    | List [Datum]
-    | Vector [Datum]
-    | Labeled Integer Datum
-    | Label Integer
-    | Quoted Datum
-    | Quasiquoted Datum
-    | Unquoted Datum
-    | UnquotedSplicing Datum
-    deriving (Show, Eq)
-
--- Instances
 
 instance Num Rational where
     a + b = case (a, b) of
@@ -123,6 +91,50 @@ instance Fractional Rational where
         Integer x -> makeRatio 1 x
         Double x -> Double $ recip x
         Ratio x y -> makeRatio y x
+
+instance RealFrac Rational where
+    properFraction r = case r of
+        Integer x -> properFraction $ Ratio x 1
+        Double x -> let (n, f) = properFraction x in (n, Double f)
+        Ratio x y -> let (n, x' :% y') = properFraction (y :% x) in (n, Ratio x' y')
+
+-- Real
+
+data Real
+    = Nan
+    | PositiveInf
+    | NegativeInf
+    | Rational Rational
+    deriving (Show, Eq)
+
+-- Complex
+
+-- TODO: Hide constructors?
+data Complex
+    = Rectangular Real Real
+    | Polar Real Real
+    | Real Real
+    deriving (Show, Eq)
+
+-- Datum
+
+data Datum
+    = Boolean Bool
+    | Number Complex
+    | Character Char
+    | String String
+    | Symbol String
+    -- TODO: Use appropriate collection types (e.g. fixed-size containers for vector/bytevector)
+    | ByteVector [Word8]
+    | List [Datum]
+    | Vector [Datum]
+    | Labeled Integer Datum
+    | Label Integer
+    | Quoted Datum
+    | Quasiquoted Datum
+    | Unquoted Datum
+    | UnquotedSplicing Datum
+    deriving (Show, Eq)
 
 -- Utilities
 
