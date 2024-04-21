@@ -5,8 +5,6 @@ import Prelude hiding (read, Rational, Real, Integer)
 import Test.HUnit
 import Test.Crafty.Util
 
-import Data.Maybe (fromJust)
-
 import Crafty.Datum
 import Crafty.Parse
 import GHC.Stack (HasCallStack)
@@ -140,35 +138,35 @@ testNormalizeNegativeRatio = testCase "Normalize negative ratio" $
 
 testComplex :: Test
 testComplex = testCase "Parse complex" $
-    "1+2i" `parsesTo` Number . exact' $ makeRectangular 1 2
+    "1+2i" `parsesTo` Number . exact' $ rectangular 1 2
 
 testComplexWithNegativeRealPart :: Test
 testComplexWithNegativeRealPart = testCase "Complex with negative real part" $
-    "-1+2i" `parsesTo` Number . exact' $ makeRectangular (-1) 2
+    "-1+2i" `parsesTo` Number . exact' $ rectangular (-1) 2
 
 testComplexWithNegativeImaginaryPart :: Test
 testComplexWithNegativeImaginaryPart = testCase "Complex with negative imaginary part" $
-    "1-2i" `parsesTo` Number . exact' $ makeRectangular 1 (-2)
+    "1-2i" `parsesTo` Number . exact' $ rectangular 1 (-2)
 
 testComplexWithOnlyRealPart :: Test
 testComplexWithOnlyRealPart = testCase "Complex with only real part" $
-    "5+0i" `parsesTo` Number . exact' $ makeRectangular 5 0
+    "5+0i" `parsesTo` Number . exact' $ rectangular 5 0
 
 testComplexWithOnlyImaginaryPart :: Test
 testComplexWithOnlyImaginaryPart = testCase "Complex with only imaginary part" $
-    "+10i" `parsesTo` Number . exact' $ makeRectangular 0 10
+    "+10i" `parsesTo` Number . exact' $ rectangular 0 10
 
 testComplexWithOnlyNegativeImaginaryPart :: Test
 testComplexWithOnlyNegativeImaginaryPart = testCase "Complex with only negative imaginary part" $
-    "-10i" `parsesTo` Number . exact' $ makeRectangular 0 (-10)
+    "-10i" `parsesTo` Number . exact' $ rectangular 0 (-10)
 
 testRealPlusI :: Test
 testRealPlusI = testCase "Complex of real plus i" $
-    "10+i" `parsesTo` Number . exact' $ makeRectangular 10 1
+    "10+i" `parsesTo` Number . exact' $ rectangular 10 1
 
 testRealMinusI :: Test
 testRealMinusI = testCase "Complex of real minus i" $
-    "10-i" `parsesTo` Number . exact' $ makeRectangular 10 (-1)
+    "10-i" `parsesTo` Number . exact' $ rectangular 10 (-1)
 
 -- testPolarComplex :: Test
 -- testPolarComplex = testCase "Polar complex" $

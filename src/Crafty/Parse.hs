@@ -5,7 +5,7 @@ module Crafty.Parse (
 
 import Control.Monad (void)
 import Data.Bits (toIntegralSized)
-import Data.Complex hiding (Complex)
+import Data.Complex hiding (Complex, polar)
 import qualified Unicode.Char.Case as Case
 import Data.Char (readLitChar, digitToInt)
 import Data.Functor (($>))
@@ -456,7 +456,7 @@ polarComplex exactness' r = do
     r' <- real exactness' r
     void at
     theta <- real exactness' r
-    return $ makePolar r' theta
+    return $ polar r' theta
 
 realComplex :: Maybe Exactness -> Radix -> Parser Number
 realComplex exactness' r = Real <$> real exactness' r

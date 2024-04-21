@@ -1,7 +1,7 @@
 module Crafty.Datum where
 
 import Prelude hiding (Rational, Real)
-import Data.Complex hiding (Complex)
+import Data.Complex hiding (Complex, polar)
 import qualified Data.Complex
 import Data.Word (Word8)
 import qualified GHC.Real
@@ -151,16 +151,16 @@ exact n = case n of
 exact' :: HasCallStack => Number -> Number
 exact' = fromJust . exact
 
-makeRectangular :: Real -> Real -> Number
-makeRectangular a b = Complex $ a :+ b
+rectangular :: Real -> Real -> Number
+rectangular a b = Complex $ a :+ b
 
-makePolar :: Real -> Real -> Number
-makePolar r t = case (r, t) of
+polar :: Real -> Real -> Number
+polar r t = case (r, t) of
     (Double r', Double t') -> let c = mkPolar r' t' in Complex $ Double (realPart c) :+ Double (imagPart c)
-    (Double r', Rational t') -> makePolar (Double r') (Double $ fromRational t')
-    (Rational r', Double t') -> makePolar (Double $ fromRational r') (Double t')
+    (Double r', Rational t') -> polar (Double r') (Double $ fromRational t')
+    (Rational r', Double t') -> polar (Double $ fromRational r') (Double t')
     -- TODO: Exact polar complex numbers?
-    (Rational r', Rational t') -> makePolar (Double $ fromRational r') (Double $ fromRational t')
+    (Rational r', Rational t') -> polar (Double $ fromRational r') (Double $ fromRational t')
 
 asInteger :: Number -> Maybe Integer
 asInteger n = case n of
@@ -186,8 +186,3 @@ data Datum
     | Unquoted Datum
     | UnquotedSplicing Datum
     deriving (Show, Eq)
-
--- Utilities
-
--- makeByte :: Complex -> Maybe Word8
--- makeByte c = case c of
