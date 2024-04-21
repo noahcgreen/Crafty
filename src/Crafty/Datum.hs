@@ -1,4 +1,22 @@
-module Crafty.Datum where
+module Crafty.Datum (
+    Datum(..),
+    -- TODO: Introduce typeclass and hide constructor?
+    Number(Real),
+    Real,
+    complex,
+    isExact,
+    inexact,
+    inexactReal,
+    exact,
+    exact',
+    rectangular,
+    polar,
+    asInteger,
+    ratio,
+    infinity,
+    negativeInfinity,
+    nan
+) where
 
 import Prelude hiding (Rational, Real)
 import Data.Complex hiding (Complex, polar)
@@ -7,7 +25,7 @@ import Data.Word (Word8)
 import qualified GHC.Real
 import GHC.Stack (HasCallStack)
 import Data.Maybe (fromJust)
-import GHC.Real (Ratio((:%)))
+import GHC.Real (Ratio((:%)), (%))
 
 -- Real
 
@@ -131,10 +149,15 @@ isExact n = case n of
     Complex (Rational _ :+ Rational _) -> True
     _ -> False
 
+inexactReal :: Real -> Real
+inexactReal r = case r of
+    Rational r' -> Double $ fromRational r'
+    _ -> r
+
 inexact :: Number -> Number
 inexact n = case n of
-    Real (Rational r) -> Real . Double $ fromRational r
-    Complex (Rational x :+ Rational y) -> Complex $ Double (fromRational x) :+ Double (fromRational y)
+    Real r@(Rational _) -> Real $ inexactReal r
+    Complex (x@(Rational _) :+ y@(Rational _)) -> Complex $ inexactReal x :+ inexactReal y
     _ -> n
 
 exact :: Number -> Maybe Number
@@ -166,6 +189,21 @@ asInteger :: Number -> Maybe Integer
 asInteger n = case n of
     Real (Rational (x :% y)) | y == 1 -> Just x
     _ -> Nothing
+
+complex :: Real -> Real -> Number
+complex a b = Complex (a :+ b)
+
+ratio :: Integer -> Integer -> Real
+ratio a b = Rational $ a % b
+
+infinity :: Real
+infinity = Double $ 1 / 0
+
+negativeInfinity :: Real
+negativeInfinity = Double $ -(1 / 0)
+
+nan :: Real
+nan = Double $ 0 / 0
 
 -- Datum
 

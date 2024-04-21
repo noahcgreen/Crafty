@@ -5,7 +5,6 @@ module Crafty.Parse (
 
 import Control.Monad (void)
 import Data.Bits (toIntegralSized)
-import Data.Complex hiding (Complex, polar)
 import qualified Unicode.Char.Case as Case
 import Data.Char (readLitChar, digitToInt)
 import Data.Functor (($>))
@@ -14,7 +13,6 @@ import Text.Parsec ((<|>), (<?>))
 import qualified Text.Parsec as Parsec
 import Prelude hiding (read, Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
-import GHC.Real hiding (Real)
 
 import Crafty.Datum
 
@@ -377,27 +375,27 @@ number = Parsec.try (number' Binary)
 number' :: Radix -> Parser Number
 number' r = do
     prefix' <- prefix r
-    complex prefix' r
+    Crafty.Parse.complex prefix' r
 
 -- Complex
 
 iPlus :: Parser Number
-iPlus = Parsec.string' "+i" $> Complex (0 :+ 1)
+iPlus = Parsec.string' "+i" $> Crafty.Datum.complex 0 1
 
 iMinus :: Parser Number
-iMinus = Parsec.string' "-i" $> Complex (0 :+ (-1))
+iMinus = Parsec.string' "-i" $> Crafty.Datum.complex 0 (-1)
 
 infI :: Parser Number
 infI = do
     inf' <- inf
     void $ Parsec.char 'i'
-    return . Complex $ 0 :+ (Double 1/0)
+    return $ Crafty.Datum.complex 0 Crafty.Datum.infinity
 
 nanI :: Parser Number
 nanI = do
-    nan' <- nan
+    nan' <- Crafty.Parse.nan
     void $ Parsec.char 'i'
-    return . Complex $ 0 :+ (Double 0/0)
+    return $ Crafty.Datum.complex 0 Crafty.Datum.nan
 
 infNanI :: Parser Number
 infNanI = infI <|> nanI
@@ -407,33 +405,33 @@ positiveUrealI exactness' r = do
     void $ Parsec.char '+'
     ur <- ureal exactness' r
     void $ Parsec.char 'i'
-    return . Complex $ 0 :+ ur
+    return $ Crafty.Datum.complex 0 ur
 
 negativeUrealI :: Maybe Exactness -> Radix -> Parser Number
 negativeUrealI exactness' r = do
     void $ Parsec.char '-'
     ur <- ureal exactness' r
     void $ Parsec.char 'i'
-    return . Complex $ 0 :+ (-ur)
+    return $ Crafty.Datum.complex 0 (-ur)
 
 realInfNanI :: Maybe Exactness -> Radix -> Parser Number
 realInfNanI exactness' r = do
     real' <- real exactness' r
     infNan' <- infNan
     void $ Parsec.char 'i'
-    return . Complex $ real' :+ infNan'
+    return $ Crafty.Datum.complex real' infNan'
 
 realNegativeI :: Maybe Exactness -> Radix -> Parser Number
 realNegativeI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.string "-i"
-    return . Complex $ real' :+ (-1)
+    return $ Crafty.Datum.complex real' (-1)
 
 realPositiveI :: Maybe Exactness -> Radix -> Parser Number
 realPositiveI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.string "+i"
-    return . Complex $ real' :+ 1
+    return $ Crafty.Datum.complex real' 1
 
 realMinusUrealI :: Maybe Exactness -> Radix -> Parser Number
 realMinusUrealI exactness' r = do
@@ -441,7 +439,7 @@ realMinusUrealI exactness' r = do
     void $ Parsec.char '-'
     imaginary <- ureal exactness' r
     void $ Parsec.char 'i'
-    return $ Complex (real' :+ (-imaginary))
+    return $ Crafty.Datum.complex real' (-imaginary)
 
 realPlusUrealI :: Maybe Exactness -> Radix -> Parser Number
 realPlusUrealI exactness' r = do
@@ -449,7 +447,7 @@ realPlusUrealI exactness' r = do
     void $ Parsec.char '+'
     imaginary <- ureal exactness' r
     void $ Parsec.char 'i'
-    return $ Complex (real' :+ imaginary)
+    return $ Crafty.Datum.complex real' imaginary
 
 polarComplex :: Maybe Exactness -> Radix -> Parser Number
 polarComplex exactness' r = do
@@ -489,11 +487,11 @@ real exactness' r = Parsec.try infNan <|> Parsec.try signedReal
 
 ureal :: Maybe Exactness -> Radix -> Parser Real
 ureal exactness' r = case r of
-    Decimal -> Parsec.try (ratio r)
+    Decimal -> Parsec.try (Crafty.Parse.ratio r)
         <|> Parsec.try (decimal10 exactness')
-        <|> Parsec.try (uinteger r >>= \x -> return . Rational $ x % 1)
-    _ -> Parsec.try (ratio r)
-        <|> Parsec.try (uinteger r >>= \x -> return . Rational $ x % 1)
+        <|> Parsec.try (uinteger r >>= \x -> return $ Crafty.Datum.ratio x 1)
+    _ -> Parsec.try (Crafty.Parse.ratio r)
+        <|> Parsec.try (uinteger r >>= \x -> return $ Crafty.Datum.ratio x 1)
 
 -- Rational
 
@@ -502,7 +500,7 @@ ratio r = do
     x <- uinteger r
     void $ Parsec.char '/'
     y <- uinteger r
-    return . Rational $ x % y
+    return $ Crafty.Datum.ratio x y
 
 decimal10 :: Maybe Exactness -> Parser Real
 decimal10 exactness' = Parsec.try (fractionalDecimal10 exactness')
@@ -513,7 +511,7 @@ uintegerDecimal10 :: Parser Real
 uintegerDecimal10 = do
     u <- uinteger Decimal
     e <- Parsec.option 0 suffix
-    return . Rational $ (u * 10 ^ e) % 1
+    return $ Crafty.Datum.ratio (u * 10 ^ e) 1
 
 fractionalDecimal10 :: Maybe Exactness -> Parser Real
 fractionalDecimal10 exactness' = do
@@ -525,9 +523,9 @@ fractionalDecimal10 exactness' = do
     let allDigits = parseDigits Decimal decimalDigits
 
     return $ case exactness' of
-        Just Exact | p >= 0 -> Rational $ (allDigits * 10 ^ p) % 1
-        Just Exact | p < 0 -> Rational $ allDigits % (10 ^ (-p))
-        _ -> Double $ fromInteger allDigits * 10 ^^ p
+        Just Exact | p >= 0 -> Crafty.Datum.ratio (allDigits * 10 ^ p) 1
+        Just Exact | p < 0 -> Crafty.Datum.ratio allDigits (10 ^ (-p))
+        _ -> inexactReal $ fromInteger allDigits * 10 ^^ p
 
 fullDecimal10 :: Maybe Exactness -> Parser Real
 fullDecimal10 exactness' = do
@@ -540,9 +538,9 @@ fullDecimal10 exactness' = do
     let allDigits = parseDigits Decimal (integerDigits ++ decimalDigits)
 
     return $ case exactness' of
-        Just Exact | p >= 0 -> Rational $ (allDigits * 10 ^ p) % 1
-        Just Exact | p < 0 -> Rational $ allDigits % (10 ^ (-p))
-        _ -> Double $ fromInteger allDigits * 10 ^^ p
+        Just Exact | p >= 0 -> Crafty.Datum.ratio (allDigits * 10 ^ p) 1
+        Just Exact | p < 0 -> Crafty.Datum.ratio allDigits (10 ^ (-p))
+        _ -> inexactReal $ fromInteger allDigits * 10 ^^ p
 
 uinteger :: Radix -> Parser Integer
 uinteger r = parseDigits r <$> Parsec.many1 (digit' r)
@@ -553,14 +551,14 @@ prefix r = Parsec.try (radix r *> exactness') <|> Parsec.try (exactness' <* radi
         exactness' = Parsec.optionMaybe exactness
 
 inf :: Parser Real
-inf = Parsec.string' "+inf.0" $> Double (1/0)
-    <|> Parsec.string' "-inf.0" $> Double (-1/0)
+inf = Parsec.string' "+inf.0" $> Crafty.Datum.infinity
+    <|> Parsec.string' "-inf.0" $> Crafty.Datum.negativeInfinity
 
 nan :: Parser Real
-nan = (Parsec.string' "+nan.0" <|> Parsec.string' "-nan.0") $> Double 0/0
+nan = (Parsec.string' "+nan.0" <|> Parsec.string' "-nan.0") $> Crafty.Datum.nan
 
 infNan :: Parser Real
-infNan = inf <|> nan
+infNan = inf <|> Crafty.Parse.nan
 
 suffix :: Parser Integer
 suffix = do
