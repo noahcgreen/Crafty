@@ -3,6 +3,7 @@ module Test.Crafty.Parse (parseTests) where
 import Prelude hiding (read, Rational, Real, Integer)
 
 import Test.HUnit
+import Test.Crafty.Util
 
 import Crafty.Parse
 import GHC.Stack (HasCallStack)
@@ -35,12 +36,6 @@ parseFails :: HasCallStack => String -> Assertion
 parseFails source = case read testFileName source of
     Left _ -> return ()
     Right _ -> assertFailure "parsed successfully"
-
-testCase :: String -> Assertion -> Test
-testCase label = TestLabel label . TestCase
-
-testCases :: String -> [Test] -> Test
-testCases label = TestLabel label . TestList
 
 -- Tests
 
@@ -442,7 +437,7 @@ quotationTests = testCases "Quotations" [
 -- All tests
 
 parseTests :: Test
-parseTests = TestList [
+parseTests = testCases "Parse" [
     identifierTests,
     numberTests,
     booleanTests,
