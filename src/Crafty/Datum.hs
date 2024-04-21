@@ -1,197 +1,171 @@
 module Crafty.Datum where
 
 import Prelude hiding (Rational, Real)
+import Data.Complex hiding (Complex)
+import qualified Data.Complex
 import Data.Word (Word8)
-import GHC.Real (Ratio((:%)))
 import qualified GHC.Real
-
--- Rational
-
-data Rational
-    -- TODO: Replace with Data.Rational
-    = Ratio Integer Integer
-    | Double Double
-    | Integer Integer
-    deriving (Show)
-
-instance Num Rational where
-    a + b = case (a, b) of
-        (Integer x, Integer y) -> Integer $ x + y
-        (Integer _, Double _) -> b + a
-        (Integer _, Ratio _ _) -> b + a
-
-        (Double x, Integer y) -> Double $ x + fromInteger y
-        (Double x, Double y) -> Double $ x + y
-        (Double x, Ratio y z) -> Double $ x + fromRational (y :% z)
-
-        (Ratio _ _, Integer z) -> a + Ratio z 1
-        (Ratio _ _, Double _) -> b + a
-        (Ratio x y, Ratio x' y') -> makeRatio (x + x') (y + y')
-
-    a * b = case (a, b) of
-        (Integer x, Integer y) -> Integer $ x * y
-        (Integer _, Double _) -> b * a
-        (Integer _, Ratio _ _) -> b * a
-
-        (Double x, Integer y) -> Double $ x * fromInteger y
-        (Double x, Double y) -> Double $ x * y
-        (Double x, Ratio y z) -> Double $ x * fromRational (y :% z)
-
-        (Ratio _ _, Integer z) -> a * Ratio z 1
-        (Ratio _ _, Double _) -> b * a
-        (Ratio x y, Ratio x' y') -> makeRatio (x * x') (y * y')
-    
-    abs r = case r of
-        Integer x -> Integer $ abs x
-        Double x -> Double $ abs x
-        Ratio x y -> makeRatio (abs x) y
-    
-    signum r = case r of
-        Integer x -> Integer $ signum x
-        Double x -> Double $ signum x
-        Ratio x _ -> Integer $ signum x
-    
-    fromInteger = Integer
-
-    negate r = case r of
-        Integer x -> Integer $ -x
-        Double x -> Double $ -x
-        Ratio x y -> Ratio (-x) y
-
-instance Eq Rational where
-    a == b = case (a, b) of
-        (Integer x, Integer y) -> x == y
-        -- FIXME?
-        (Integer _, Double _) -> False
-        (Integer x, Ratio _ _) -> Ratio x 1 == b
-
-        (Double _, Integer _) -> b == a
-        (Double x, Double y) -> x == y
-        (Double x, Ratio y z) -> x == fromRational (y :% z)
-
-        (Ratio _ _, Integer x) -> a == Ratio x 1
-        -- FIXME?
-        (Ratio _ _, Double _) -> False
-        -- Assumes simplest terms
-        (Ratio x y, Ratio x' y') -> x == x' && y == y'
-
-instance Ord Rational where
-    x <= y = toRational x <= toRational y
-
-instance GHC.Real.Real Rational where
-    toRational r = case r of
-        Ratio x y -> x :% y
-        Integer x -> toRational x
-        Double x -> toRational x
-
-instance Fractional Rational where
-    fromRational (x :% y) = Ratio x y
-    
-    recip r = case r of
-        Integer x -> makeRatio 1 x
-        Double x -> Double $ recip x
-        Ratio x y -> makeRatio y x
-
-instance RealFrac Rational where
-    properFraction r = case r of
-        Integer x -> properFraction $ Ratio x 1
-        Double x -> let (n, f) = properFraction x in (n, Double f)
-        Ratio x y -> let (n, x' :% y') = properFraction (y :% x) in (n, Ratio x' y')
+import GHC.Stack (HasCallStack)
+import Data.Maybe (fromJust)
 
 -- Real
 
 data Real
-    = Nan
-    | PositiveInf
-    | NegativeInf
-    | Rational Rational
+    -- Used for all inexact values, including Nan and infinities
+    -- Snarfing from Double because it's already IEEE 754 compliant
+    = Double Double
+    -- Used for all exact values, including integers, where the denominator is one
+    | Rational GHC.Real.Rational
     deriving (Show)
 
 instance Num Real where
     a + b = case (a, b) of
-        (Nan, _) -> Nan
-        (_, Nan) -> Nan
-
-        (PositiveInf, NegativeInf) -> Nan
-        (PositiveInf, _) -> PositiveInf
-
-        (NegativeInf, PositiveInf) -> Nan
-        (NegativeInf, _) -> NegativeInf
-
+        (Double x, Double y) -> Double $ x + y
+        (Double x, Rational y) -> Double $ x + fromRational y
+        (Rational x, Double y) -> Double $ fromRational x + y
         (Rational x, Rational y) -> Rational $ x + y
-        (Rational _, _) -> b + a
-    
+
     a * b = case (a, b) of
-        (Nan, _) -> Nan
-        (_, Nan) -> Nan
-
-        (PositiveInf, PositiveInf) -> PositiveInf
-        (PositiveInf, NegativeInf) -> NegativeInf
-        (PositiveInf, Rational r) -> if r < 0 then NegativeInf else PositiveInf
-
-        (NegativeInf, PositiveInf) -> NegativeInf
-        (NegativeInf, NegativeInf) -> PositiveInf
-        (NegativeInf, Rational r) -> if r < 0 then PositiveInf else NegativeInf
-
+        (Double x, Double y) -> Double $ x * y
+        (Double x, Rational y) -> Double $ x * fromRational y
+        (Rational x, Double y) -> Double $ fromRational x * y
         (Rational x, Rational y) -> Rational $ x * y
-        (Rational _, _) -> b * a
-    
+
     abs r = case r of
-        Nan -> Nan
-        PositiveInf -> PositiveInf
-        NegativeInf -> NegativeInf
+        Double x -> Double $ abs x
         Rational x -> Rational $ abs x
-    
+
     signum r = case r of
-        Nan -> Nan
-        PositiveInf -> 1
-        NegativeInf -> -1
+        Double x -> Double $ signum x
         Rational x -> Rational $ signum x
 
     fromInteger = Rational . fromInteger
 
     negate r = case r of
-        Nan -> Nan
-        PositiveInf -> NegativeInf
-        NegativeInf -> PositiveInf
+        Double x -> Double $ -x
         Rational x -> Rational $ -x
 
+-- See note in R7RS spec about transitivity of equality
 instance Eq Real where
     a == b = case (a, b) of
-        (PositiveInf, PositiveInf) -> True
-        (NegativeInf, NegativeInf) -> True
+        (Double x, Double y) -> x == y
         (Rational x, Rational y) -> x == y
-        _ -> False
+
+        (Rational x, Double y)
+            | isInfinite y -> False
+            | isNaN y -> False
+            | otherwise -> x == toRational y
+        (Double _, Rational _) -> b == a
 
 instance Ord Real where
-    a <= b = a == b || case (a, b) of
-        (NegativeInf, PositiveInf) -> True
-        (Rational x, Rational y) -> x < y
-        _ -> False
+    a <= b = case (a, b) of
+        (Double x, Double y) -> x <= y
+        (Rational x, Rational y) -> x <= y
+
+        (Rational x, Double y) -> fromRational x <= y
+        (Double x, Rational y) -> x <= fromRational y
 
 instance Fractional Real where
-    fromRational = Rational . fromRational
-
+    fromRational = Rational
     recip r = case r of
-        Nan -> Nan
-        PositiveInf -> 0
-        NegativeInf -> 0
+        Double x -> Double $ recip x
         Rational x -> Rational $ recip x
 
 -- Complex
 
 -- TODO: Wrap in Number and hide constructors?
-data Complex
-    = Rectangular Real Real
-    | Polar Real Real
+data Number
+    = Complex (Data.Complex.Complex Real)
+    -- TODO: Maybe remove this constructor, and use Complex with an exact (Rational) zero imaginary part?
     | Real Real
-    deriving (Show)
+    deriving (Show, Eq)
+
+-- FIXME: Review this, check to see if there are any unnecessary conversions from Rational to Double
+instance Num Number where
+    a + b = case (a, b) of
+        (Complex (x :+ y), Complex (x' :+ y')) -> Complex $ (x + x') :+ (y + y')
+        (Complex _, Real x) -> a + Complex (x :+ 0)
+        (Real _, Complex _) -> b + a
+        (Real x, Real y) -> Real $ x + y
+
+    a * b = case (a, b) of
+        (Complex (x :+ y), Complex (x' :+ y')) -> Complex $ (x * x' - y * y') :+ (x * y' + y * x')
+        (Complex _, Real x) -> a * Complex (x :+ 0)
+        (Real _, Complex _) -> b * a
+        (Real x, Real y) -> Real $ x * y
+
+    abs c = case c of
+        Complex (Double x :+ Double y) -> let a = abs (x :+ y) in Complex $ Double (realPart a) :+ Double (imagPart a)
+        Complex (Double x :+ Rational y) -> abs $ Complex (Double x :+ Double (fromRational y))
+        Complex (Rational x :+ Double y) -> abs $ Complex (Double (fromRational x) :+ Double y)
+        Complex (Rational x :+ Rational y) -> abs $ Complex (Double (fromRational x) :+ Double (fromRational y))
+        Real x -> Real $ abs x
+
+    signum c = case c of
+        Complex (Double x :+ Double y) -> let s = signum (x :+ y) in Complex $ Double (realPart s) :+ Double (imagPart s)
+        Complex (Double x :+ Rational y) -> signum . Complex $ Double x :+ Double (fromRational y)
+        Complex (Rational x :+ Double y) -> signum . Complex $ Double (fromRational x) :+ Double y
+        Complex (Rational x :+ Rational y) -> signum . Complex $ Double (fromRational x) :+ Double (fromRational y)
+        Real x -> Real $ signum x
+
+    fromInteger = Real . fromInteger
+
+    negate c = case c of
+        Complex (x :+ y) -> Complex $ (-x) :+ (-y)
+        Real x -> Real $ negate x
+
+instance Fractional Number where
+    fromRational = Real . Rational
+
+    recip n = case n of
+        Complex (Double x :+ Double y) -> let r = recip (x :+ y) in Complex $ Double (realPart r) :+ Double (imagPart r)
+        Complex (Double x :+ Rational y) -> recip . Complex $ Double x :+ Double (fromRational y)
+        Complex (Rational x :+ Double y) -> recip . Complex $ Double (fromRational x) :+ Double y
+        Complex (Rational x :+ Rational y) -> recip . Complex $ Double (fromRational x) :+ Double (fromRational y)
+        Real r -> Real $ recip r
+
+isExact :: Number -> Bool
+isExact n = case n of
+    Real (Rational _) -> True
+    Complex (Rational _ :+ Rational _) -> True
+    _ -> False
+
+inexact :: Number -> Number
+inexact n = case n of
+    Real (Rational r) -> Real . Double $ fromRational r
+    Complex (Rational x :+ Rational y) -> Complex $ Double (fromRational x) :+ Double (fromRational y)
+    _ -> n
+
+exact :: Number -> Maybe Number
+exact n = case n of
+    Real (Double d)
+        | isInfinite d -> Nothing
+        | isNaN d -> Nothing
+        | otherwise -> Just . Real . Rational $ toRational d
+    Complex (Double x :+ Double y) -> Just . Complex $ Rational (toRational x) :+ Rational (toRational y)
+    Complex (Double x :+ y@(Rational _)) -> Just . Complex $ Rational (toRational x) :+ y
+    Complex (x@(Rational _) :+ Double y) -> Just . Complex $ x :+ Rational (toRational y)
+    _ -> Just n
+
+exact' :: HasCallStack => Number -> Number
+exact' = fromJust . exact
+
+makeRectangular :: Real -> Real -> Number
+makeRectangular a b = Complex $ a :+ b
+
+makePolar :: Real -> Real -> Number
+makePolar r t = case (r, t) of
+    (Double r', Double t') -> let c = mkPolar r' t' in Complex $ Double (realPart c) :+ Double (imagPart c)
+    (Double r', Rational t') -> makePolar (Double r') (Double $ fromRational t')
+    (Rational r', Double t') -> makePolar (Double $ fromRational r') (Double t')
+    -- TODO: Exact polar complex numbers?
+    (Rational r', Rational t') -> makePolar (Double $ fromRational r') (Double $ fromRational t')
 
 -- Datum
 
 data Datum
     = Boolean Bool
-    | Number Complex
+    | Number Number
     | Character Char
     | String String
     | Symbol String
@@ -208,10 +182,6 @@ data Datum
     deriving (Show, Eq)
 
 -- Utilities
-
--- Construct a ratio in simplest terms
-makeRatio :: Integer -> Integer -> Rational
-makeRatio x y = let d = gcd x y in Ratio (x `div` d) (y `div` d)
 
 -- makeByte :: Complex -> Maybe Word8
 -- makeByte c = case c of

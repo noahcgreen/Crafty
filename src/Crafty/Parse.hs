@@ -1,14 +1,11 @@
 module Crafty.Parse (
     read,
-    readAll,
-    Datum (..),
-    Complex (..),
-    Rational (..),
-    Real (..)
+    readAll
     ) where
 
 import Control.Monad (void)
 import Data.Bits (toIntegralSized)
+import Data.Complex hiding (Complex)
 import qualified Unicode.Char.Case as Case
 import Data.Char (readLitChar, digitToInt)
 import Data.Functor (($>))
@@ -17,6 +14,7 @@ import Text.Parsec ((<|>), (<?>))
 import qualified Text.Parsec as Parsec
 import Prelude hiding (read, Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
+import GHC.Real hiding (Real)
 
 import Crafty.Datum
 
@@ -130,12 +128,13 @@ uinteger' = Parsec.try (uinteger Binary)
 byte :: Parser Word8
 byte = do
     -- TODO: Support any exact integer, e.g. ratios
-    x <- number
-    case x of
-        (Real (Rational (Integer i))) -> case toIntegralSized i of
-            Just b -> return b
-            Nothing -> fail $ "Bytevector element is not a byte: " ++ show x
-        _ -> fail $ "Bytevector element is not a byte: " ++ show x
+    fail "Bytevector needs work"
+    -- x <- number
+    -- case x of
+    --     (Real (Rational (Integer i))) -> case toIntegralSized i of
+    --         Just b -> return b
+    --         Nothing -> fail $ "Bytevector element is not a byte: " ++ show x
+    --     _ -> fail $ "Bytevector element is not a byte: " ++ show x
 
 bytevector :: Parser [Word8]
 bytevector = do
@@ -372,101 +371,101 @@ dotSubsequent = signSubsequent <|> dot
 
 -- Number
 
-number :: Parser Complex
+number :: Parser Number
 number = Parsec.try (number' Binary)
     <|> Parsec.try (number' Octal)
     <|> Parsec.try (number' Decimal)
     <|> Parsec.try (number' Hexadecimal)
     <?> "number"
 
-number' :: Radix -> Parser Complex
+number' :: Radix -> Parser Number
 number' r = do
     prefix' <- prefix r
     complex prefix' r
 
 -- Complex
 
-iPlus :: Parser Complex
-iPlus = Parsec.string' "+i" $> Rectangular (Rational $ Integer 0) (Rational . Integer $ 1)
+iPlus :: Parser Number
+iPlus = Parsec.string' "+i" $> Complex (0 :+ 1)
 
-iMinus :: Parser Complex
-iMinus = Parsec.string' "-i" $> Rectangular (Rational $ Integer 0) (Rational . Integer $ -1)
+iMinus :: Parser Number
+iMinus = Parsec.string' "-i" $> Complex (0 :+ (-1))
 
-infI :: Parser Complex
+infI :: Parser Number
 infI = do
     inf' <- inf
     void $ Parsec.char 'i'
-    return $ Rectangular (Rational $ Integer 0) inf'
+    return . Complex $ 0 :+ (Double 1/0)
 
-nanI :: Parser Complex
+nanI :: Parser Number
 nanI = do
     nan' <- nan
     void $ Parsec.char 'i'
-    return $ Rectangular (Rational $ Integer 0) nan'
+    return . Complex $ 0 :+ (Double 0/0)
 
-infNanI :: Parser Complex
+infNanI :: Parser Number
 infNanI = infI <|> nanI
 
-positiveUrealI :: Maybe Exactness -> Radix -> Parser Complex
+positiveUrealI :: Maybe Exactness -> Radix -> Parser Number
 positiveUrealI exactness' r = do
     void $ Parsec.char '+'
     ur <- ureal exactness' r
     void $ Parsec.char 'i'
-    return $ Rectangular (Rational $ Integer 0) ur
+    return . Complex $ 0 :+ ur
 
-negativeUrealI :: Maybe Exactness -> Radix -> Parser Complex
+negativeUrealI :: Maybe Exactness -> Radix -> Parser Number
 negativeUrealI exactness' r = do
     void $ Parsec.char '-'
     ur <- ureal exactness' r
     void $ Parsec.char 'i'
-    return $ Rectangular (Rational $ Integer 0) (negateReal ur)
+    return . Complex $ 0 :+ (-ur)
 
-realInfNanI :: Maybe Exactness -> Radix -> Parser Complex
+realInfNanI :: Maybe Exactness -> Radix -> Parser Number
 realInfNanI exactness' r = do
     real' <- real exactness' r
     infNan' <- infNan
     void $ Parsec.char 'i'
-    return $ Rectangular real' infNan'
+    return . Complex $ real' :+ infNan'
 
-realNegativeI :: Maybe Exactness -> Radix -> Parser Complex
+realNegativeI :: Maybe Exactness -> Radix -> Parser Number
 realNegativeI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.string "-i"
-    return $ Rectangular real' (Rational $ Integer (-1))
+    return . Complex $ real' :+ (-1)
 
-realPositiveI :: Maybe Exactness -> Radix -> Parser Complex
+realPositiveI :: Maybe Exactness -> Radix -> Parser Number
 realPositiveI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.string "+i"
-    return $ Rectangular real' (Rational $ Integer 1)
+    return . Complex $ real' :+ 1
 
-realMinusUrealI :: Maybe Exactness -> Radix -> Parser Complex
+realMinusUrealI :: Maybe Exactness -> Radix -> Parser Number
 realMinusUrealI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.char '-'
     imaginary <- ureal exactness' r
     void $ Parsec.char 'i'
-    return $ Rectangular real' (negateReal imaginary)
+    return $ Complex (real' :+ (-imaginary))
 
-realPlusUrealI :: Maybe Exactness -> Radix -> Parser Complex
+realPlusUrealI :: Maybe Exactness -> Radix -> Parser Number
 realPlusUrealI exactness' r = do
     real' <- real exactness' r
     void $ Parsec.char '+'
     imaginary <- ureal exactness' r
     void $ Parsec.char 'i'
-    return $ Rectangular real' imaginary
+    return $ Complex (real' :+ imaginary)
 
-polarComplex :: Maybe Exactness -> Radix -> Parser Complex
+polarComplex :: Maybe Exactness -> Radix -> Parser Number
 polarComplex exactness' r = do
     r' <- real exactness' r
     void at
     theta <- real exactness' r
-    return $ Polar r' theta
+    return $ makePolar r' theta
 
-realComplex :: Maybe Exactness -> Radix -> Parser Complex
+realComplex :: Maybe Exactness -> Radix -> Parser Number
 realComplex exactness' r = Real <$> real exactness' r
 
-complex :: Maybe Exactness -> Radix -> Parser Complex
+complex :: Maybe Exactness -> Radix -> Parser Number
 complex exactness' r = iPlus
     <|> Parsec.try iMinus
     <|> Parsec.try infNanI
@@ -482,16 +481,6 @@ complex exactness' r = iPlus
 
 -- Real
 
-negateReal :: Real -> Real
-negateReal r = case r of
-    Nan -> Nan
-    PositiveInf -> NegativeInf
-    NegativeInf -> PositiveInf
-    Rational r' -> Rational $ case r' of
-        Ratio x y -> Ratio (-x) y
-        Double d -> Double (-d)
-        Integer i -> Integer (-i)
-
 real :: Maybe Exactness -> Radix -> Parser Real
 real exactness' r = Parsec.try infNan <|> Parsec.try signedReal
     where
@@ -500,34 +489,37 @@ real exactness' r = Parsec.try infNan <|> Parsec.try signedReal
             n <- ureal exactness' r
             return $ case sign' of
                 Positive -> n
-                Negative -> negateReal n
+                Negative -> -n
 
 ureal :: Maybe Exactness -> Radix -> Parser Real
-ureal exactness' r = Rational <$> case r of
-    Decimal -> Parsec.try (ratio r) <|> Parsec.try (decimal10 exactness') <|> Parsec.try (Integer <$> uinteger r)
-    _ -> Parsec.try (ratio r) <|> Parsec.try (Integer <$> uinteger r)
+ureal exactness' r = case r of
+    Decimal -> Parsec.try (ratio r)
+        <|> Parsec.try (decimal10 exactness')
+        <|> Parsec.try (uinteger r >>= \x -> return . Rational $ x % 1)
+    _ -> Parsec.try (ratio r)
+        <|> Parsec.try (uinteger r >>= \x -> return . Rational $ x % 1)
 
 -- Rational
 
-ratio :: Radix -> Parser Rational
+ratio :: Radix -> Parser Real
 ratio r = do
     x <- uinteger r
     void $ Parsec.char '/'
     y <- uinteger r
-    return $ makeRatio x y
+    return . Rational $ x % y
 
-decimal10 :: Maybe Exactness -> Parser Rational
+decimal10 :: Maybe Exactness -> Parser Real
 decimal10 exactness' = Parsec.try (fractionalDecimal10 exactness')
     <|> Parsec.try (fullDecimal10 exactness')
     <|> Parsec.try uintegerDecimal10
 
-uintegerDecimal10 :: Parser Rational
+uintegerDecimal10 :: Parser Real
 uintegerDecimal10 = do
     u <- uinteger Decimal
     e <- Parsec.option 0 suffix
-    return $ Integer (u * 10 ^ e)
+    return . Rational $ (u * 10 ^ e) % 1
 
-fractionalDecimal10 :: Maybe Exactness -> Parser Rational
+fractionalDecimal10 :: Maybe Exactness -> Parser Real
 fractionalDecimal10 exactness' = do
     void dot
     decimalDigits <- Parsec.many1 (digit' Decimal)
@@ -537,11 +529,11 @@ fractionalDecimal10 exactness' = do
     let allDigits = parseDigits Decimal decimalDigits
 
     return $ case exactness' of
-        Just Exact | p >= 0 -> Integer $ allDigits * 10 ^ p
-        Just Exact | p < 0 -> makeRatio allDigits (10 ^ (-p))
+        Just Exact | p >= 0 -> Rational $ (allDigits * 10 ^ p) % 1
+        Just Exact | p < 0 -> Rational $ allDigits % (10 ^ (-p))
         _ -> Double $ fromInteger allDigits * 10 ^^ p
 
-fullDecimal10 :: Maybe Exactness -> Parser Rational
+fullDecimal10 :: Maybe Exactness -> Parser Real
 fullDecimal10 exactness' = do
     integerDigits <- Parsec.many1 $ digit' Decimal
     void dot
@@ -552,8 +544,8 @@ fullDecimal10 exactness' = do
     let allDigits = parseDigits Decimal (integerDigits ++ decimalDigits)
 
     return $ case exactness' of
-        Just Exact | p >= 0 -> Integer $ allDigits * 10 ^ p
-        Just Exact | p < 0 -> makeRatio allDigits (10 ^ (-p))
+        Just Exact | p >= 0 -> Rational $ (allDigits * 10 ^ p) % 1
+        Just Exact | p < 0 -> Rational $ allDigits % (10 ^ (-p))
         _ -> Double $ fromInteger allDigits * 10 ^^ p
 
 uinteger :: Radix -> Parser Integer
@@ -565,11 +557,11 @@ prefix r = Parsec.try (radix r *> exactness') <|> Parsec.try (exactness' <* radi
         exactness' = Parsec.optionMaybe exactness
 
 inf :: Parser Real
-inf = Parsec.string' "+inf.0" $> PositiveInf
-    <|> Parsec.string' "-inf.0" $> NegativeInf
+inf = Parsec.string' "+inf.0" $> Double (1/0)
+    <|> Parsec.string' "-inf.0" $> Double (-1/0)
 
 nan :: Parser Real
-nan = (Parsec.string' "+nan.0" <|> Parsec.string' "-nan.0") $> Nan
+nan = (Parsec.string' "+nan.0" <|> Parsec.string' "-nan.0") $> Double 0/0
 
 infNan :: Parser Real
 infNan = inf <|> nan

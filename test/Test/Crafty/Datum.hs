@@ -6,14 +6,17 @@ import Test.Crafty.Util
 
 import Crafty.Datum
 
-testRationalFromInteger :: Test
-testRationalFromInteger = testCase "Rational from integer" $ do
-    (1 :: Rational) @?= Integer 1
-    (1 :: Rational) @?= Ratio 1 1
+testNumberFromInteger :: Test
+testNumberFromInteger = testCase "Number from integer" $ do
+    let one = 1 :: Number
+    one @?= 1
+    assert $ isExact one
+    one + one @?= 2
+    one * 2 @?= 2
 
 numericTests :: Test
 numericTests = testCases "Numeric" [
-    testRationalFromInteger
+    testNumberFromInteger
     ]
 
 datumTests :: Test

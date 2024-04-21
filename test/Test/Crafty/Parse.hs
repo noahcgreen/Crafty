@@ -5,6 +5,9 @@ import Prelude hiding (read, Rational, Real, Integer)
 import Test.HUnit
 import Test.Crafty.Util
 
+import Data.Maybe (fromJust)
+
+import Crafty.Datum
 import Crafty.Parse
 import GHC.Stack (HasCallStack)
 
@@ -85,91 +88,91 @@ identifierTests = testCases "Identifiers" [
 
 testInteger :: Test
 testInteger = testCase "Integer" $
-    "10" `parsesTo` Number . Real . Rational $ Integer 10
+    "10" `parsesTo` Number $ exact' 10
 
 testNegativeInteger :: Test
 testNegativeInteger = testCase "Negative integer" $
-    "-10" `parsesTo` Number . Real . Rational $ Integer (-10)
+    "-10" `parsesTo` Number . exact' $ -10
 
 testDouble :: Test
 testDouble = testCase "Double" $
-    "12.34" `parsesTo` Number . Real . Rational $ Double 12.34
+    "12.34" `parsesTo` Number $ inexact 12.34
 
 testNegativeDouble :: Test
 testNegativeDouble = testCase "Negative double" $
-    "-12.34" `parsesTo` Number . Real . Rational $ Double (-12.34)
+    "-12.34" `parsesTo` Number . inexact $ -12.34
 
 testDoubleWithTrailingZeros :: Test
 testDoubleWithTrailingZeros = testCase "Double with trailing zeros" $
-    "12.30400" `parsesTo` Number . Real . Rational $ Double 12.304
+    "12.30400" `parsesTo` Number $ inexact 12.304
 
 testExactDecimal :: Test
 testExactDecimal = testCase "Exact decimal" $
-    "#e12.340" `parsesTo` Number . Real . Rational $ Ratio 617 50
+    "#e12.340" `parsesTo` Number . exact' $ 617 / 50
 
 testNormalizeExactDecimalWithExponent :: Test
 testNormalizeExactDecimalWithExponent = testCase "Normalize exact decimal" $
-    "#e1.23400e1" `parsesTo` Number . Real . Rational $ Ratio 617 50
+    "#e1.23400e1" `parsesTo` Number . exact' $ 617 / 50
 
 testTrailingDecimal :: Test
 testTrailingDecimal = testCase "Trailing decimal" $
-    ".123400" `parsesTo` Number . Real . Rational $ Double 0.1234
+    ".123400" `parsesTo` Number $ inexact 0.1234
 
 testExactTrailingDecimal :: Test
 testExactTrailingDecimal = testCase "Exact trailing decimal" $
-    "#e.12340" `parsesTo` Number . Real . Rational $ Ratio 617 5000
+    "#e.12340" `parsesTo` Number . exact' $ 617 / 5000
 
 testRatio :: Test
 testRatio = testCase "Parse ratio" $
-    "1/2" `parsesTo` Number . Real . Rational $ Ratio 1 2
+    "1/2" `parsesTo` Number . exact' $ 1 / 2
 
 testNegativeRatio :: Test
 testNegativeRatio = testCase "Negative ratio" $
-    "-1/2" `parsesTo` Number . Real . Rational $ Ratio (-1) 2
+    "-1/2" `parsesTo` Number . exact' $ -(1 / 2)
 
 testNormalizeRatio :: Test
 testNormalizeRatio = testCase "Normalize ratio" $
-    "2/4" `parsesTo` Number . Real . Rational $ Ratio 1 2
+    "2/4" `parsesTo` Number . exact' $ 1 / 2
 
 testNormalizeNegativeRatio :: Test
 testNormalizeNegativeRatio = testCase "Normalize negative ratio" $
-    "-2/4" `parsesTo` Number . Real . Rational $ Ratio (-1) 2
+    "-2/4" `parsesTo` Number . exact' $ -(1 / 2)
 
 testComplex :: Test
 testComplex = testCase "Parse complex" $
-    "1+2i" `parsesTo` Number (Rectangular (Rational $ Integer 1) (Rational $ Integer 2))
+    "1+2i" `parsesTo` Number . exact' $ makeRectangular 1 2
 
 testComplexWithNegativeRealPart :: Test
 testComplexWithNegativeRealPart = testCase "Complex with negative real part" $
-    "-1+2i" `parsesTo` Number (Rectangular (Rational $ Integer (-1)) (Rational $ Integer 2))
+    "-1+2i" `parsesTo` Number . exact' $ makeRectangular (-1) 2
 
 testComplexWithNegativeImaginaryPart :: Test
 testComplexWithNegativeImaginaryPart = testCase "Complex with negative imaginary part" $
-    "1-2i" `parsesTo` Number (Rectangular (Rational $ Integer 1) (Rational $ Integer (-2)))
+    "1-2i" `parsesTo` Number . exact' $ makeRectangular 1 (-2)
 
 testComplexWithOnlyRealPart :: Test
 testComplexWithOnlyRealPart = testCase "Complex with only real part" $
-    "5+0i" `parsesTo` Number $ Rectangular (Rational $ Integer 5) (Rational $ Integer 0)
+    "5+0i" `parsesTo` Number . exact' $ makeRectangular 5 0
 
 testComplexWithOnlyImaginaryPart :: Test
 testComplexWithOnlyImaginaryPart = testCase "Complex with only imaginary part" $
-    "+10i" `parsesTo` Number $ Rectangular (Rational $ Integer 0) (Rational $ Integer 10)
+    "+10i" `parsesTo` Number . exact' $ makeRectangular 0 10
 
 testComplexWithOnlyNegativeImaginaryPart :: Test
 testComplexWithOnlyNegativeImaginaryPart = testCase "Complex with only negative imaginary part" $
-    "-10i" `parsesTo` Number $ Rectangular (Rational $ Integer 0) (Rational $ Integer (-10))
+    "-10i" `parsesTo` Number . exact' $ makeRectangular 0 (-10)
 
 testRealPlusI :: Test
 testRealPlusI = testCase "Complex of real plus i" $
-    "10+i" `parsesTo` Number $ Rectangular (Rational $ Integer 10) (Rational $ Integer 1)
+    "10+i" `parsesTo` Number . exact' $ makeRectangular 10 1
 
 testRealMinusI :: Test
 testRealMinusI = testCase "Complex of real minus i" $
-    "10-i" `parsesTo` Number $ Rectangular (Rational $ Integer 10) (Rational $ Integer (-1))
+    "10-i" `parsesTo` Number . exact' $ makeRectangular 10 (-1)
 
-testPolarComplex :: Test
-testPolarComplex = testCase "Polar complex" $
-    "1@2" `parsesTo` Number $ Polar (Rational $ Integer 1) (Rational $ Integer 2)
+-- testPolarComplex :: Test
+-- testPolarComplex = testCase "Polar complex" $
+--     "1@2" `parsesTo` Number $ Polar (Rational $ Integer 1) (Rational $ Integer 2)
 
 numberTests :: Test
 numberTests = testCases "Numbers" [
@@ -193,8 +196,8 @@ numberTests = testCases "Numbers" [
     testComplexWithOnlyImaginaryPart,
     testComplexWithOnlyNegativeImaginaryPart,
     testRealPlusI,
-    testRealMinusI,
-    testPolarComplex
+    testRealMinusI
+    -- testPolarComplex
     ]
 
 -- Characters
@@ -270,13 +273,10 @@ testEmptyVector = testCase "Empty vector" $
 testHeterogeneousVector :: Test
 testHeterogeneousVector = testCase "Heterogeneous vector" $
     "#(0 (2 2 2 2) \"Anna\")" `parsesTo` Vector [
-        zero,
-        List [two, two, two, two],
+        Number 0,
+        List $ map Number [2, 2, 2, 2],
         String "Anna"
     ]
-    where
-        zero = Number . Real . Rational $ Integer 0
-        two = Number . Real . Rational $ Integer 2
 
 testSymbolVector :: Test
 testSymbolVector = testCase "Character vector" $
@@ -284,18 +284,7 @@ testSymbolVector = testCase "Character vector" $
 
 testIntegerVector :: Test
 testIntegerVector = testCase "Integer vector" $
-    "#(1 1 2 3 5 8 13 21)" `parsesTo` Vector [
-        integer 1,
-        integer 1,
-        integer 2,
-        integer 3,
-        integer 5,
-        integer 8,
-        integer 13,
-        integer 21
-    ]
-    where
-        integer = Number . Real . Rational . Integer
+    "#(1 1 2 3 5 8 13 21)" `parsesTo` Vector $ map Number [1, 1, 2, 3, 5, 8, 13, 21]
 
 vectorTests :: Test
 vectorTests = testCases "Vectors" [
@@ -416,7 +405,7 @@ testQuote = testCase "Quote" $
 
 testNestedQuote :: Test
 testNestedQuote = testCase "Nested quote" $
-    "''1" `parsesTo` Quoted . Quoted . Number . Real . Rational $ Integer 1
+    "''1" `parsesTo` Quoted . Quoted $ Number 1
 
 testQuasiquote :: Test
 testQuasiquote = testCase "Quasiquote" $
