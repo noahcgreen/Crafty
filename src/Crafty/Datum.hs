@@ -10,7 +10,7 @@ data Rational
     = Ratio Integer Integer
     | Double Double
     | Integer Integer
-    deriving (Show, Eq)
+    deriving (Show)
 
 data Real
     = Nan
@@ -19,6 +19,7 @@ data Real
     | Rational Rational
     deriving (Show, Eq)
 
+-- TODO: Hide constructors?
 data Complex
     = Rectangular Real Real
     | Polar Real Real
@@ -88,6 +89,23 @@ instance Num Rational where
         Integer x -> Integer $ -x
         Double x -> Double $ -x
         Ratio x y -> Ratio (-x) y
+
+instance Eq Rational where
+    a == b = case (a, b) of
+        (Integer x, Integer y) -> x == y
+        -- FIXME?
+        (Integer _, Double _) -> False
+        (Integer x, Ratio _ _) -> Ratio x 1 == b
+
+        (Double _, Integer _) -> b == a
+        (Double x, Double y) -> x == y
+        (Double x, Ratio y z) -> x == fromRational (y :% z)
+
+        (Ratio _ _, Integer x) -> a == Ratio x 1
+        -- FIXME?
+        (Ratio _ _, Double _) -> False
+        -- Assumes simplest terms
+        (Ratio x y, Ratio x' y') -> x == x' && y == y'
 
 instance Ord Rational where
     x <= y = toRational x <= toRational y
