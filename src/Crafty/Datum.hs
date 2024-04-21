@@ -105,16 +105,87 @@ data Real
     | PositiveInf
     | NegativeInf
     | Rational Rational
-    deriving (Show, Eq)
+    deriving (Show)
+
+instance Num Real where
+    a + b = case (a, b) of
+        (Nan, _) -> Nan
+        (_, Nan) -> Nan
+
+        (PositiveInf, NegativeInf) -> Nan
+        (PositiveInf, _) -> PositiveInf
+
+        (NegativeInf, PositiveInf) -> Nan
+        (NegativeInf, _) -> NegativeInf
+
+        (Rational x, Rational y) -> Rational $ x + y
+        (Rational _, _) -> b + a
+    
+    a * b = case (a, b) of
+        (Nan, _) -> Nan
+        (_, Nan) -> Nan
+
+        (PositiveInf, PositiveInf) -> PositiveInf
+        (PositiveInf, NegativeInf) -> NegativeInf
+        (PositiveInf, Rational r) -> if r < 0 then NegativeInf else PositiveInf
+
+        (NegativeInf, PositiveInf) -> NegativeInf
+        (NegativeInf, NegativeInf) -> PositiveInf
+        (NegativeInf, Rational r) -> if r < 0 then PositiveInf else NegativeInf
+
+        (Rational x, Rational y) -> Rational $ x * y
+        (Rational _, _) -> b * a
+    
+    abs r = case r of
+        Nan -> Nan
+        PositiveInf -> PositiveInf
+        NegativeInf -> NegativeInf
+        Rational x -> Rational $ abs x
+    
+    signum r = case r of
+        Nan -> Nan
+        PositiveInf -> 1
+        NegativeInf -> -1
+        Rational x -> Rational $ signum x
+
+    fromInteger = Rational . fromInteger
+
+    negate r = case r of
+        Nan -> Nan
+        PositiveInf -> NegativeInf
+        NegativeInf -> PositiveInf
+        Rational x -> Rational $ -x
+
+instance Eq Real where
+    a == b = case (a, b) of
+        (PositiveInf, PositiveInf) -> True
+        (NegativeInf, NegativeInf) -> True
+        (Rational x, Rational y) -> x == y
+        _ -> False
+
+instance Ord Real where
+    a <= b = a == b || case (a, b) of
+        (NegativeInf, PositiveInf) -> True
+        (Rational x, Rational y) -> x < y
+        _ -> False
+
+instance Fractional Real where
+    fromRational = Rational . fromRational
+
+    recip r = case r of
+        Nan -> Nan
+        PositiveInf -> 0
+        NegativeInf -> 0
+        Rational x -> Rational $ recip x
 
 -- Complex
 
--- TODO: Hide constructors?
+-- TODO: Wrap in Number and hide constructors?
 data Complex
     = Rectangular Real Real
     | Polar Real Real
     | Real Real
-    deriving (Show, Eq)
+    deriving (Show)
 
 -- Datum
 
