@@ -2,7 +2,7 @@ module Main (main) where
 
 import System.Exit (exitSuccess, exitFailure)
 import Test.HUnit
-import Test.Crafty.Parse (parseTests)
+import Test.Crafty.Parse
 
 main :: IO ()
 main = do

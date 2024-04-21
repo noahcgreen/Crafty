@@ -17,7 +17,7 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  Crafty.Parse
+    exposed-modules:  Crafty.Datum, Crafty.Parse
     -- other-modules: 
     -- other-extensions:
     build-depends:

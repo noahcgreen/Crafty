@@ -1,4 +1,4 @@
-module Test.Crafty.Parse where
+module Test.Crafty.Parse (parseTests) where
 
 import Prelude hiding (read, Rational, Real, Integer)
 

@@ -17,115 +17,10 @@ import Text.Parsec ((<|>), (<?>))
 import qualified Text.Parsec as Parsec
 import Prelude hiding (read, Rational, Real)
 import Control.Exception (SomeException, Exception (toException))
-import qualified GHC.Real
-import GHC.Real (Ratio((:%)))
 
--- AST types
-
-data Rational
-    -- TODO: Replace with Data.Rational
-    = Ratio Integer Integer
-    | Double Double
-    | Integer Integer
-    deriving (Show, Eq)
-
-data Real
-    = Nan
-    | PositiveInf
-    | NegativeInf
-    | Rational Rational
-    deriving (Show, Eq)
-
-data Complex
-    = Rectangular Real Real
-    | Polar Real Real
-    | Real Real
-    deriving (Show, Eq)
-
-data Datum
-    = Boolean Bool
-    | Number Complex
-    | Character Char
-    | String String
-    | Symbol String
-    -- TODO: Use appropriate collection types (e.g. fixed-size containers for vector/bytevector)
-    | ByteVector [Word8]
-    | List [Datum]
-    | Vector [Datum]
-    | Labeled Integer Datum
-    | Label Integer
-    | Quoted Datum
-    | Quasiquoted Datum
-    | Unquoted Datum
-    | UnquotedSplicing Datum
-    deriving (Show, Eq)
+import Crafty.Datum
 
 -- Numeric utilities
-
-instance Num Rational where
-    a + b = case (a, b) of
-        (Integer x, Integer y) -> Integer $ x + y
-        (Integer _, Double _) -> b + a
-        (Integer _, Ratio _ _) -> b + a
-
-        (Double x, Integer y) -> Double $ x + fromInteger y
-        (Double x, Double y) -> Double $ x + y
-        (Double x, Ratio y z) -> Double $ x + fromRational (y :% z)
-
-        (Ratio _ _, Integer z) -> a + Ratio z 1
-        (Ratio _ _, Double _) -> b + a
-        (Ratio x y, Ratio x' y') -> makeRatio (x + x') (y + y')
-
-    a * b = case (a, b) of
-        (Integer x, Integer y) -> Integer $ x * y
-        (Integer _, Double _) -> b * a
-        (Integer _, Ratio _ _) -> b * a
-
-        (Double x, Integer y) -> Double $ x * fromInteger y
-        (Double x, Double y) -> Double $ x * y
-        (Double x, Ratio y z) -> Double $ x * fromRational (y :% z)
-
-        (Ratio _ _, Integer z) -> a * Ratio z 1
-        (Ratio _ _, Double _) -> b * a
-        (Ratio x y, Ratio x' y') -> makeRatio (x * x') (y * y')
-    
-    abs r = case r of
-        Integer x -> Integer $ abs x
-        Double x -> Double $ abs x
-        Ratio x y -> makeRatio (abs x) y
-    
-    signum r = case r of
-        Integer x -> Integer $ signum x
-        Double x -> Double $ signum x
-        Ratio x _ -> Integer $ signum x
-    
-    fromInteger = Integer
-
-    negate r = case r of
-        Integer x -> Integer $ -x
-        Double x -> Double $ -x
-        Ratio x y -> Ratio (-x) y
-
-instance Ord Rational where
-    x <= y = toRational x <= toRational y
-
-instance GHC.Real.Real Rational where
-    toRational r = case r of
-        Ratio x y -> x :% y
-        Integer x -> toRational x
-        Double x -> toRational x
-
-instance Fractional Rational where
-    fromRational (x :% y) = Ratio x y
-    
-    recip r = case r of
-        Integer x -> makeRatio 1 x
-        Double x -> Double $ recip x
-        Ratio x y -> makeRatio y x
-
--- Construct a ratio in simplest terms
-makeRatio :: Integer -> Integer -> Rational
-makeRatio x y = let d = gcd x y in Ratio (x `div` d) (y `div` d)
 
 parseDigits :: Radix -> [Char] -> Integer
 parseDigits r = toInteger . foldl (\x d -> x * r' + digitToInt d) 0
@@ -135,10 +30,6 @@ parseDigits r = toInteger . foldl (\x d -> x * r' + digitToInt d) 0
             Octal -> 8
             Decimal -> 10
             Hexadecimal -> 16
-
--- makeByte :: Complex -> Maybe Word8
--- makeByte c = case c of
-
 
 -- Misc types
 
