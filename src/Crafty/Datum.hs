@@ -7,6 +7,7 @@ import Data.Word (Word8)
 import qualified GHC.Real
 import GHC.Stack (HasCallStack)
 import Data.Maybe (fromJust)
+import GHC.Real (Ratio((:%)))
 
 -- Real
 
@@ -160,6 +161,11 @@ makePolar r t = case (r, t) of
     (Rational r', Double t') -> makePolar (Double $ fromRational r') (Double t')
     -- TODO: Exact polar complex numbers?
     (Rational r', Rational t') -> makePolar (Double $ fromRational r') (Double $ fromRational t')
+
+asInteger :: Number -> Maybe Integer
+asInteger n = case n of
+    Real (Rational (x :% y)) | y == 1 -> Just x
+    _ -> Nothing
 
 -- Datum
 

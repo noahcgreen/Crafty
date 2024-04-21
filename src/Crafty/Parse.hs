@@ -127,14 +127,10 @@ uinteger' = Parsec.try (uinteger Binary)
 
 byte :: Parser Word8
 byte = do
-    -- TODO: Support any exact integer, e.g. ratios
-    fail "Bytevector needs work"
-    -- x <- number
-    -- case x of
-    --     (Real (Rational (Integer i))) -> case toIntegralSized i of
-    --         Just b -> return b
-    --         Nothing -> fail $ "Bytevector element is not a byte: " ++ show x
-    --     _ -> fail $ "Bytevector element is not a byte: " ++ show x
+    x <- number
+    case asInteger x >>= toIntegralSized of
+        Just b -> return b
+        Nothing -> fail $ "Bytevector element is not a byte: " ++ show x
 
 bytevector :: Parser [Word8]
 bytevector = do
